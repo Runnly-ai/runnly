@@ -547,6 +547,8 @@ pub fn merge_configured_model_providers(
                     built_in_aws.region = Some(region);
                 }
             }
+        } else if key == DEEPSEEK_PROVIDER_ID {
+            model_providers.insert(key, provider);
         } else {
             model_providers.entry(key).or_insert(provider);
         }

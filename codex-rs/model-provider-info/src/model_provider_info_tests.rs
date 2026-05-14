@@ -15,6 +15,7 @@ base_url = "http://localhost:11434/v1"
         name: "Ollama".into(),
         base_url: Some("http://localhost:11434/v1".into()),
         env_key: None,
+        api_key_file: None,
         env_key_instructions: None,
         experimental_bearer_token: None,
         auth: None,
@@ -47,6 +48,7 @@ query_params = { api-version = "2025-04-01-preview" }
         name: "Azure".into(),
         base_url: Some("https://xxxxx.openai.azure.com/openai".into()),
         env_key: Some("AZURE_OPENAI_API_KEY".into()),
+        api_key_file: None,
         env_key_instructions: None,
         experimental_bearer_token: None,
         auth: None,
@@ -82,6 +84,7 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
         name: "Example".into(),
         base_url: Some("https://example.com".into()),
         env_key: Some("API_KEY".into()),
+        api_key_file: None,
         env_key_instructions: None,
         experimental_bearer_token: None,
         auth: None,
@@ -145,6 +148,7 @@ fn test_supports_remote_compaction_for_azure_name() {
         name: "Azure".into(),
         base_url: Some("https://example.com/openai".into()),
         env_key: Some("AZURE_OPENAI_API_KEY".into()),
+        api_key_file: None,
         env_key_instructions: None,
         experimental_bearer_token: None,
         auth: None,
@@ -170,6 +174,7 @@ fn test_supports_remote_compaction_for_non_openai_non_azure_provider() {
         name: "Example".into(),
         base_url: Some("https://example.com/v1".into()),
         env_key: Some("API_KEY".into()),
+        api_key_file: None,
         env_key_instructions: None,
         experimental_bearer_token: None,
         auth: None,
@@ -246,8 +251,9 @@ fn test_create_amazon_bedrock_provider() {
         ModelProviderInfo {
             name: "Amazon Bedrock".to_string(),
             base_url: Some("https://bedrock-mantle.us-east-1.api.aws/openai/v1".to_string()),
-            env_key: None,
-            env_key_instructions: None,
+        env_key: None,
+        api_key_file: None,
+        env_key_instructions: None,
             experimental_bearer_token: None,
             auth: None,
             aws: Some(ModelProviderAwsAuthInfo {
@@ -310,6 +316,40 @@ fn test_merge_configured_model_providers_adds_custom_provider() {
 
     let mut expected = built_in_model_providers(/*openai_base_url*/ None);
     expected.insert("custom".to_string(), custom_provider);
+
+    assert_eq!(
+        merge_configured_model_providers(
+            built_in_model_providers(/*openai_base_url*/ None),
+            configured_model_providers,
+        ),
+        Ok(expected)
+    );
+}
+
+#[test]
+fn test_merge_configured_model_providers_overrides_deepseek_provider() {
+    let configured_model_providers = std::collections::HashMap::from([(
+        DEEPSEEK_PROVIDER_ID.to_string(),
+        ModelProviderInfo {
+            name: "DeepSeek".to_string(),
+            base_url: Some("https://api.deepseek.com".to_string()),
+            api_key_file: Some("~/.runnly/secrets/deepseek-api-key".to_string()),
+            wire_api: WireApi::ChatCompletions,
+            ..ModelProviderInfo::default()
+        },
+    )]);
+
+    let mut expected = built_in_model_providers(/*openai_base_url*/ None);
+    expected.insert(
+        DEEPSEEK_PROVIDER_ID.to_string(),
+        ModelProviderInfo {
+            name: "DeepSeek".to_string(),
+            base_url: Some("https://api.deepseek.com".to_string()),
+            api_key_file: Some("~/.runnly/secrets/deepseek-api-key".to_string()),
+            wire_api: WireApi::ChatCompletions,
+            ..ModelProviderInfo::default()
+        },
+    );
 
     assert_eq!(
         merge_configured_model_providers(
@@ -414,7 +454,7 @@ fn test_validate_provider_aws_rejects_conflicting_auth() {
 
     assert_eq!(
         provider.validate(),
-        Err("provider aws cannot be combined with env_key, requires_openai_auth".to_string())
+        Err("provider aws cannot be combined with env_key".to_string())
     );
 }
 

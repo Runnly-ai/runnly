@@ -6,4 +6,4 @@ name = "DeepSeek"
 base_url = "https://api.deepseek.com"
 api_key_file = "~/.runnly/secrets/deepseek-api-key"
 requires_openai_auth = false
-wire_api = "responses"
+wire_api = "chat_completions"
