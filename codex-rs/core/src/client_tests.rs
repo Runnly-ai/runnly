@@ -36,6 +36,13 @@ use codex_rollout_trace::RawTraceEventPayload;
 use codex_rollout_trace::RolloutTrace;
 use codex_rollout_trace::TraceWriter;
 use codex_rollout_trace::replay_bundle;
+use codex_tools::FreeformTool;
+use codex_tools::FreeformToolFormat;
+use codex_tools::JsonSchema;
+use codex_tools::ResponsesApiNamespace;
+use codex_tools::ResponsesApiNamespaceTool;
+use codex_tools::ResponsesApiTool;
+use codex_tools::ToolSpec;
 use futures::StreamExt;
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -204,6 +211,115 @@ fn output_message(id: &str, text: &str) -> ResponseItem {
         }],
         phase: None,
     }
+}
+
+#[test]
+fn build_chat_tools_and_tool_output_for_function_calls() {
+    let prompt = super::Prompt {
+        tools: vec![ToolSpec::Function(ResponsesApiTool {
+            name: "lookup_order".to_string(),
+            description: "Look up an order".to_string(),
+            strict: false,
+            defer_loading: None,
+            parameters: JsonSchema::object(Default::default(), None, None),
+            output_schema: None,
+        })],
+        ..super::Prompt::default()
+    };
+
+    let tools = super::chat_tools_for_prompt(&prompt);
+    assert_eq!(tools.len(), 1);
+    assert_eq!(tools[0].r#type, "function");
+    assert_eq!(tools[0].function.name, "lookup_order");
+
+    let payload = codex_protocol::models::FunctionCallOutputPayload::from_text("done".to_string());
+    assert_eq!(
+        super::function_call_output_to_chat_content(&payload),
+        Some("done".to_string())
+    );
+}
+
+#[test]
+fn build_chat_tools_flattens_namespace_tools() {
+    let prompt = super::Prompt {
+        tools: vec![ToolSpec::Namespace(ResponsesApiNamespace {
+            name: "mcp__demo__".to_string(),
+            description: "Demo tools".to_string(),
+            tools: vec![ResponsesApiNamespaceTool::Function(ResponsesApiTool {
+                name: "lookup_order".to_string(),
+                description: "Look up an order".to_string(),
+                strict: false,
+                defer_loading: None,
+                parameters: JsonSchema::object(Default::default(), None, None),
+                output_schema: None,
+            })],
+        })],
+        ..super::Prompt::default()
+    };
+
+    let tools = super::chat_tools_for_prompt(&prompt);
+    assert_eq!(tools.len(), 1);
+    assert_eq!(tools[0].function.name, "lookup_order");
+}
+
+#[test]
+fn build_chat_tools_includes_freeform_tools() {
+    let prompt = super::Prompt {
+        tools: vec![ToolSpec::Freeform(FreeformTool {
+            name: "apply_patch".to_string(),
+            description: "Use the apply_patch tool".to_string(),
+            format: FreeformToolFormat {
+                r#type: "grammar".to_string(),
+                syntax: "lark".to_string(),
+                definition: "start: patch".to_string(),
+            },
+        })],
+        ..super::Prompt::default()
+    };
+
+    let tools = super::chat_tools_for_prompt(&prompt);
+    assert_eq!(tools.len(), 1);
+    assert_eq!(tools[0].function.name, "apply_patch");
+}
+
+#[test]
+fn build_chat_tools_wraps_web_search_and_image_generation() {
+    let prompt = super::Prompt {
+        tools: vec![
+            ToolSpec::WebSearch {
+                external_web_access: Some(true),
+                filters: None,
+                user_location: None,
+                search_context_size: None,
+                search_content_types: Some(vec!["text".to_string()]),
+            },
+            ToolSpec::ImageGeneration {
+                output_format: "png".to_string(),
+            },
+        ],
+        ..super::Prompt::default()
+    };
+
+    let tools = super::chat_tools_for_prompt(&prompt);
+    assert_eq!(tools.len(), 2);
+    assert_eq!(tools[0].function.name, "web_search");
+    assert_eq!(tools[1].function.name, "image_generation");
+}
+
+#[test]
+fn build_chat_tools_wraps_tool_search() {
+    let prompt = super::Prompt {
+        tools: vec![ToolSpec::ToolSearch {
+            execution: "on-demand".to_string(),
+            description: "Search tools before calling them".to_string(),
+            parameters: JsonSchema::object(Default::default(), None, None),
+        }],
+        ..super::Prompt::default()
+    };
+
+    let tools = super::chat_tools_for_prompt(&prompt);
+    assert_eq!(tools.len(), 1);
+    assert_eq!(tools[0].function.name, "tool_search");
 }
 
 async fn replay_until_cancelled(temp: &TempDir) -> anyhow::Result<RolloutTrace> {

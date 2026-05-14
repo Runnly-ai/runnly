@@ -251,9 +251,9 @@ fn test_create_amazon_bedrock_provider() {
         ModelProviderInfo {
             name: "Amazon Bedrock".to_string(),
             base_url: Some("https://bedrock-mantle.us-east-1.api.aws/openai/v1".to_string()),
-        env_key: None,
-        api_key_file: None,
-        env_key_instructions: None,
+            env_key: None,
+            api_key_file: None,
+            env_key_instructions: None,
             experimental_bearer_token: None,
             auth: None,
             aws: Some(ModelProviderAwsAuthInfo {
