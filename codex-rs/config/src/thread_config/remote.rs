@@ -167,6 +167,7 @@ fn model_provider_from_proto(
         name: provider.name,
         base_url: provider.base_url,
         env_key: provider.env_key,
+        api_key_file: provider.api_key_file,
         env_key_instructions: provider.env_key_instructions,
         experimental_bearer_token: provider.experimental_bearer_token,
         auth: provider
@@ -197,6 +198,7 @@ fn model_provider_to_proto(
         name,
         base_url,
         env_key,
+        api_key_file,
         env_key_instructions,
         experimental_bearer_token,
         auth,
@@ -218,6 +220,7 @@ fn model_provider_to_proto(
         name,
         base_url,
         env_key,
+        api_key_file,
         env_key_instructions,
         experimental_bearer_token,
         auth: auth.map(model_provider_auth_to_proto),

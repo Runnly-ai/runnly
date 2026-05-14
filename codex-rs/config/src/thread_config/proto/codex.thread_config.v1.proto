@@ -35,19 +35,20 @@ message ModelProvider {
   string name = 2;
   optional string base_url = 3;
   optional string env_key = 4;
-  optional string env_key_instructions = 5;
-  optional string experimental_bearer_token = 6;
-  optional ModelProviderAuthInfo auth = 7;
-  WireApi wire_api = 8;
-  optional StringMap query_params = 9;
-  optional StringMap http_headers = 10;
-  optional StringMap env_http_headers = 11;
-  optional uint64 request_max_retries = 12;
-  optional uint64 stream_max_retries = 13;
-  optional uint64 stream_idle_timeout_ms = 14;
-  optional uint64 websocket_connect_timeout_ms = 15;
-  bool requires_openai_auth = 16;
-  bool supports_websockets = 17;
+  optional string api_key_file = 5;
+  optional string env_key_instructions = 6;
+  optional string experimental_bearer_token = 7;
+  optional ModelProviderAuthInfo auth = 8;
+  WireApi wire_api = 9;
+  optional StringMap query_params = 10;
+  optional StringMap http_headers = 11;
+  optional StringMap env_http_headers = 12;
+  optional uint64 request_max_retries = 13;
+  optional uint64 stream_max_retries = 14;
+  optional uint64 stream_idle_timeout_ms = 15;
+  optional uint64 websocket_connect_timeout_ms = 16;
+  bool requires_openai_auth = 17;
+  bool supports_websockets = 18;
 }
 
 message StringMap {

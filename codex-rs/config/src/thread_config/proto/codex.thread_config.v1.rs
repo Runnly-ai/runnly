@@ -50,30 +50,32 @@ pub struct ModelProvider {
     #[prost(string, optional, tag = "4")]
     pub env_key: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "5")]
-    pub env_key_instructions: ::core::option::Option<::prost::alloc::string::String>,
+    pub api_key_file: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "6")]
+    pub env_key_instructions: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "7")]
     pub experimental_bearer_token: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(message, optional, tag = "7")]
+    #[prost(message, optional, tag = "8")]
     pub auth: ::core::option::Option<ModelProviderAuthInfo>,
-    #[prost(enumeration = "WireApi", tag = "8")]
+    #[prost(enumeration = "WireApi", tag = "9")]
     pub wire_api: i32,
-    #[prost(message, optional, tag = "9")]
-    pub query_params: ::core::option::Option<StringMap>,
     #[prost(message, optional, tag = "10")]
-    pub http_headers: ::core::option::Option<StringMap>,
+    pub query_params: ::core::option::Option<StringMap>,
     #[prost(message, optional, tag = "11")]
+    pub http_headers: ::core::option::Option<StringMap>,
+    #[prost(message, optional, tag = "12")]
     pub env_http_headers: ::core::option::Option<StringMap>,
-    #[prost(uint64, optional, tag = "12")]
-    pub request_max_retries: ::core::option::Option<u64>,
     #[prost(uint64, optional, tag = "13")]
-    pub stream_max_retries: ::core::option::Option<u64>,
+    pub request_max_retries: ::core::option::Option<u64>,
     #[prost(uint64, optional, tag = "14")]
-    pub stream_idle_timeout_ms: ::core::option::Option<u64>,
+    pub stream_max_retries: ::core::option::Option<u64>,
     #[prost(uint64, optional, tag = "15")]
+    pub stream_idle_timeout_ms: ::core::option::Option<u64>,
+    #[prost(uint64, optional, tag = "16")]
     pub websocket_connect_timeout_ms: ::core::option::Option<u64>,
-    #[prost(bool, tag = "16")]
-    pub requires_openai_auth: bool,
     #[prost(bool, tag = "17")]
+    pub requires_openai_auth: bool,
+    #[prost(bool, tag = "18")]
     pub supports_websockets: bool,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]

@@ -1,4 +1,4 @@
-# Configuration
+# Configuration for Runnly
 
 For basic configuration instructions, see [this documentation](https://developers.openai.com/codex/config-basic).
 

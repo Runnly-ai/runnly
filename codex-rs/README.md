@@ -2,6 +2,33 @@
 
 We provide Codex CLI as a standalone executable to ensure a zero-dependency install.
 
+## Workspace Map
+
+This workspace is split into a few layers:
+
+- `cli/` starts the `runnly` command and dispatches subcommands.
+- `tui/` renders the interactive terminal experience.
+- `core/` owns config loading, session state, execution flow, and most runtime orchestration.
+- `login/` handles auth loading, login flows, and credential storage.
+- `model-provider/` and `model-provider-info/` define provider metadata, auth headers, and outbound request wiring.
+- `app-server/` implements the JSON-RPC server used by the TUI and other clients.
+- `app-server-protocol/` defines the wire types for app-server requests, responses, and notifications.
+- `mcp-server/`, `responses-api-proxy/`, `exec-server/`, and `network-proxy/` provide helper runtime services.
+- `exec/`, `execpolicy/`, `sandbox/`, `linux-sandbox/`, and `windows-sandbox-rs/` cover command execution and sandboxing.
+- `utils/` contains small shared crates such as home-dir resolution, CLI helpers, paths, and terminal detection.
+- `codex-api/`, `codex-client/`, `codex-mcp/`, and `file-search/` provide API, transport, MCP, and search support.
+- `thread-store/`, `message-history/`, `state/`, and `rollout-trace/` handle persistence and debugging data.
+- `skills/` and `core-skills/` manage bundled skills and skill loading.
+- `app-server-daemon/`, `app-server-client/`, `app-server-test-client/`, and `debug-client/` are support crates for the app-server ecosystem.
+
+If you are trying to understand the flow, the shortest path is:
+
+1. `cli/` -> entrypoint and argument parsing
+2. `core/` -> config and runtime orchestration
+3. `login/` -> credential handling
+4. `model-provider/` -> outbound API requests
+5. `tui/` / `app-server/` -> user-facing interaction
+
 ## Installing Codex
 
 Today, the easiest way to install Codex is via `npm`:

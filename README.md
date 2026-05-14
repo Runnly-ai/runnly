@@ -1,6 +1,6 @@
-# Runnly-agent
+# Runnly
 
-<p align="center"><strong>Runnly-agent</strong> is an AI coding agent that runs locally on your computer and works with OpenAI-compatible LLM models.</p>
+<p align="center"><strong>Runnly</strong> is an AI coding agent that runs locally on your computer and works with OpenAI-compatible LLM models.</p>
 
 <p align="center">A fork of OpenAI's Codex, designed to support multiple OpenAI-compatible LLM providers including OpenAI, Azure OpenAI, Anthropic Claude, and other compatible APIs.</p>
 
@@ -15,29 +15,35 @@
 
 ## Quickstart
 
-### Installing and running Runnly-agent
+### Installing and running Runnly
 
 #### Building from source:
 
 ```shell
-# Clone the repository
-git clone the project
-cd runnly-agent
-
-# Build the project
+# Build the workspace binary
 cd codex-rs
-cargo build --release
+RUSTUP_TOOLCHAIN=stable TMPDIR=/private/tmp CARGO_HOME=/private/tmp/cargo cargo build -p codex-cli --bin runnly
 
-# Run the agent
-cargo run --release -p codex-cli
-# Or run the binary directly after building:
-# ./codex-rs/target/release/codex
+# Run the agent help output
+RUNNLY_HOME=$HOME/.runnly target/debug/runnly --help
+
+# Or run the binary directly after building
+RUNNLY_HOME=$HOME/.runnly target/debug/runnly
+```
+
+On macOS, if the build stops at a native C++ dependency with an error like
+`fatal error: 'algorithm' file not found`, install or reselect the Xcode
+Command Line Tools:
+
+```shell
+xcode-select --install
+sudo xcode-select --switch /Library/Developer/CommandLineTools
 ```
 
 #### Pre-built binaries:
 
 <details>
-<summary>Download from the <a href="https://github.com/[your-username]/runnly-agent/releases/latest">latest GitHub Release</a> (when available)</summary>
+<summary>Download from the <a href="https://github.com/[your-username]/Runnly/releases/latest">latest GitHub Release</a> (when available)</summary>
 
 Pre-built binaries will be available for:
 
@@ -51,7 +57,7 @@ Extract the archive and run the binary directly.
 
 ### Configuration
 
-Runnly-agent works with any OpenAI-compatible LLM provider using API keys. **No OpenAI account required!**
+Runnly works with any OpenAI-compatible LLM provider using API keys. **No OpenAI account required!**
 
 #### Quick Start with Environment Variables
 
@@ -71,21 +77,27 @@ export CUSTOM_API_KEY=your-api-key-here
 Then run:
 ```shell
 cd codex-rs
-cargo run --release -p codex-cli
+RUSTUP_TOOLCHAIN=stable TMPDIR=/private/tmp CARGO_HOME=/private/tmp/cargo cargo run -p codex-cli --bin runnly
 ```
 
 #### Supported Providers
 
 **DeepSeek** (fast, cost-effective, built-in):
 ```shell
-export DEEPSEEK_API_KEY=your-api-key
-cargo run --release -p codex-cli -- --model-provider deepseek --model deepseek-v4-flash
+mkdir -p ~/.runnly/secrets
+printf '%s' 'your-api-key' > ~/.runnly/secrets/deepseek-api-key
+RUSTUP_TOOLCHAIN=stable TMPDIR=/private/tmp CARGO_HOME=/private/tmp/cargo cargo run -p codex-cli --bin runnly -- --model-provider deepseek --model deepseek-v4-flash
 ```
 
-Or create `~/.codex/config.toml`:
+Or create `~/.runnly/config.toml`:
 ```toml
 model_provider = "deepseek"
 model = "deepseek-v4-flash"
+
+[model_providers.deepseek]
+name = "DeepSeek"
+base_url = "https://api.deepseek.com"
+api_key_file = "~/.runnly/secrets/deepseek-api-key"
 ```
 
 See [deepseek-config.toml](./deepseek-config.toml) for a complete example.
@@ -97,7 +109,7 @@ Available models:
 **OpenAI** (default):
 ```shell
 export OPENAI_API_KEY=sk-...
-cargo run --release -p codex-cli
+RUSTUP_TOOLCHAIN=stable TMPDIR=/private/tmp CARGO_HOME=/private/tmp/cargo cargo run -p codex-cli --bin runnly
 ```
 
 **Anthropic Claude** (via OpenAI-compatible endpoint):
@@ -160,8 +172,8 @@ For more details, see the [config documentation](./docs/config.md).
 
 ## About
 
-Runnly-agent is a fork of [OpenAI's Codex](https://github.com/openai/codex), extended to work with any OpenAI-compatible LLM API. This project maintains compatibility with the original Codex architecture while adding flexibility to use your preferred AI model provider.
+Runnly is a fork of [OpenAI's Codex](https://github.com/openai/codex), extended to work with any OpenAI-compatible LLM API. This project maintains compatibility with the original Codex architecture while adding flexibility to use your preferred AI model provider.
 
 To sync updates from the upstream OpenAI Codex repository, see the [contributing guide](./docs/contributing.md).
 
-This repository is licensed under the [Apache-2.0 License](LICENSE).
+This repository is licensed under the [Apache-2.0 License](LICENSE). It is a fork of [OpenAI Codex](https://github.com/openai/codex), which is also Apache-2.0 licensed; see [NOTICE](./NOTICE) for upstream attribution and third-party notices.

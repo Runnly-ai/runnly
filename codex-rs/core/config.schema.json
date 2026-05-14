@@ -1349,6 +1349,10 @@
       "additionalProperties": false,
       "description": "Serializable representation of a provider definition.",
       "properties": {
+        "api_key_file": {
+          "description": "Path to a file that contains the user's API key for this provider. The file should contain the raw token, optionally followed by a trailing newline.",
+          "type": "string"
+        },
         "auth": {
           "allOf": [
             {

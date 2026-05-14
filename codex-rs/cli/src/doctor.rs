@@ -1,4 +1,4 @@
-//! Implements the `codex doctor` diagnostic report.
+//! Implements the `runnly doctor` diagnostic report.
 //!
 //! Doctor is intentionally read-mostly: checks inspect the current installation,
 //! configuration, authentication, terminal, state paths, and bounded reachability
@@ -286,7 +286,7 @@ impl DoctorCheck {
 
 /// Builds, renders, and exits according to the current doctor report.
 ///
-/// This is the CLI entry point for codex doctor. It does not repair issues;
+/// This is the CLI entry point for runnly doctor. It does not repair issues;
 /// failures are represented in the report and cause a non-zero process exit so
 /// scripts can distinguish a clean environment from one that needs attention.
 pub async fn run_doctor(
@@ -408,7 +408,7 @@ async fn build_report(
                             "config could not be loaded",
                         )
                         .detail(err.to_string())
-                        .remediation("Fix the reported config error, then rerun codex doctor.")
+                        .remediation("Fix the reported config error, then rerun runnly doctor.")
                     })
                 },
                 async { run_sync_check("network", progress.clone(), network_check) },
@@ -507,7 +507,7 @@ fn config_overrides_from_interactive(
     }
 }
 
-/// JSON support report emitted by `codex doctor --json`.
+/// JSON support report emitted by `runnly doctor --json`.
 ///
 /// The report is keyed by check id so support tooling can fetch paths like
 /// `checks["terminal.metadata"]` without scanning arrays. Human rendering can
@@ -969,7 +969,7 @@ where
 
 fn config_check(config: &Config) -> DoctorCheck {
     let mut details = Vec::new();
-    details.push(format!("CODEX_HOME: {}", config.codex_home.display()));
+    details.push(format!("RUNNLY_HOME: {}", config.codex_home.display()));
     details.push(format!("cwd: {}", config.cwd.display()));
     details.push(format!(
         "model: {}",
@@ -1110,8 +1110,8 @@ fn auth_check(config: &Config) -> DoctorCheck {
             let mut check =
                 DoctorCheck::new("auth.credentials", "auth", status, summary).details(details);
             if status == CheckStatus::Fail {
-                check =
-                    check.remediation("Run codex login again or provide a supported auth env var.");
+                check = check
+                    .remediation("Run runnly login again or provide a supported auth env var.");
             }
             check
         }
@@ -1126,10 +1126,10 @@ fn auth_check(config: &Config) -> DoctorCheck {
             "auth.credentials",
             "auth",
             CheckStatus::Fail,
-            "no Codex credentials were found",
+            "no Runnly credentials were found",
         )
         .details(details)
-        .remediation("Run codex login or provide an API key through a supported auth env var."),
+        .remediation("Run runnly login or provide an API key through a supported auth env var."),
         Err(err) => DoctorCheck::new(
             "auth.credentials",
             "auth",
@@ -1137,7 +1137,7 @@ fn auth_check(config: &Config) -> DoctorCheck {
             "stored credentials could not be read",
         )
         .detail(err.to_string())
-        .remediation("Fix auth storage access or run codex login again."),
+        .remediation("Fix auth storage access or run runnly login again."),
     }
 }
 
@@ -1936,7 +1936,7 @@ fn non_empty_trimmed(value: String) -> Option<String> {
 
 async fn state_check(config: &Config) -> DoctorCheck {
     let mut details = Vec::new();
-    path_readiness(&mut details, "CODEX_HOME", &config.codex_home);
+    path_readiness(&mut details, "RUNNLY_HOME", &config.codex_home);
     path_readiness(&mut details, "log dir", &config.log_dir);
     path_readiness(&mut details, "sqlite home", &config.sqlite_home);
     let state_db = codex_state::state_db_path(&config.sqlite_home);
@@ -1961,8 +1961,9 @@ async fn state_check(config: &Config) -> DoctorCheck {
     };
     let mut check = DoctorCheck::new("state.paths", "state", status, summary).details(details);
     if status == CheckStatus::Fail {
-        check = check
-            .remediation("Back up CODEX_HOME, then remove or repair the affected SQLite database.");
+        check = check.remediation(
+            "Back up RUNNLY_HOME, then remove or repair the affected SQLite database.",
+        );
     }
     check
 }
@@ -2296,14 +2297,14 @@ fn fallback_state_check() -> DoctorCheck {
             "state.paths",
             "state",
             CheckStatus::Ok,
-            "CODEX_HOME was resolved without config",
+            "RUNNLY_HOME was resolved without config",
         )
-        .detail(format!("CODEX_HOME: {}", path.display())),
+        .detail(format!("RUNNLY_HOME: {}", path.display())),
         Err(err) => DoctorCheck::new(
             "state.paths",
             "state",
             CheckStatus::Warning,
-            "CODEX_HOME could not be resolved",
+            "RUNNLY_HOME could not be resolved",
         )
         .detail(err.to_string()),
     }

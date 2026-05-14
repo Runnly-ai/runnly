@@ -16,6 +16,7 @@ use codex_protocol::error::Result as CodexResult;
 use http::HeaderMap;
 use http::header::HeaderName;
 use http::header::HeaderValue;
+use std::fs;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -92,6 +93,9 @@ pub struct ModelProviderInfo {
     pub base_url: Option<String>,
     /// Environment variable that stores the user's API key for this provider.
     pub env_key: Option<String>,
+    /// Path to a file that contains the user's API key for this provider.
+    /// The file should contain the raw token, optionally followed by a trailing newline.
+    pub api_key_file: Option<String>,
 
     /// Optional instructions to help the user get a valid value for the
     /// variable and set it.
@@ -162,6 +166,9 @@ impl ModelProviderInfo {
             if self.env_key.is_some() {
                 conflicts.push("env_key");
             }
+            if self.api_key_file.is_some() {
+                conflicts.push("api_key_file");
+            }
             if self.experimental_bearer_token.is_some() {
                 conflicts.push("experimental_bearer_token");
             }
@@ -191,6 +198,9 @@ impl ModelProviderInfo {
         let mut conflicts = Vec::new();
         if self.env_key.is_some() {
             conflicts.push("env_key");
+        }
+        if self.api_key_file.is_some() {
+            conflicts.push("api_key_file");
         }
         if self.experimental_bearer_token.is_some() {
             conflicts.push("experimental_bearer_token");
@@ -273,21 +283,41 @@ impl ModelProviderInfo {
     /// (and non-empty) in the environment. If `env_key` is required but
     /// cannot be found, returns an error.
     pub fn api_key(&self) -> CodexResult<Option<String>> {
-        match &self.env_key {
-            Some(env_key) => {
-                let api_key = std::env::var(env_key)
-                    .ok()
-                    .filter(|v| !v.trim().is_empty())
-                    .ok_or_else(|| {
-                        CodexErr::EnvVar(EnvVarError {
-                            var: env_key.clone(),
-                            instructions: self.env_key_instructions.clone(),
-                        })
-                    })?;
-                Ok(Some(api_key))
-            }
-            None => Ok(None),
+        if let Some(env_key) = &self.env_key {
+            let api_key = std::env::var(env_key)
+                .ok()
+                .filter(|v| !v.trim().is_empty())
+                .ok_or_else(|| {
+                    CodexErr::EnvVar(EnvVarError {
+                        var: env_key.clone(),
+                        instructions: self.env_key_instructions.clone(),
+                    })
+                })?;
+            return Ok(Some(api_key));
         }
+
+        if let Some(api_key_file) = &self.api_key_file {
+            let path = expand_tilde(api_key_file);
+            let api_key = fs::read_to_string(&path).map_err(|err| {
+                std::io::Error::new(
+                    err.kind(),
+                    format!("failed to read API key file {}: {err}", path.display()),
+                )
+            })?;
+            let api_key = api_key.trim().to_string();
+            if api_key.is_empty() {
+                return Err(CodexErr::EnvVar(EnvVarError {
+                    var: path.display().to_string(),
+                    instructions: Some(format!(
+                        "Create a file containing the API key at {}",
+                        path.display()
+                    )),
+                }));
+            }
+            return Ok(Some(api_key));
+        }
+
+        Ok(None)
     }
 
     /// Effective maximum number of request retries for this provider.
@@ -323,6 +353,7 @@ impl ModelProviderInfo {
             name: OPENAI_PROVIDER_NAME.into(),
             base_url,
             env_key: Some("OPENAI_API_KEY".to_string()),
+            api_key_file: None,
             env_key_instructions: Some("Get your API key from https://platform.openai.com/api-keys\nSet it with: export OPENAI_API_KEY=your-api-key-here".to_string()),
             experimental_bearer_token: None,
             auth: None,
@@ -362,6 +393,7 @@ impl ModelProviderInfo {
             name: AMAZON_BEDROCK_PROVIDER_NAME.into(),
             base_url: Some(AMAZON_BEDROCK_DEFAULT_BASE_URL.into()),
             env_key: None,
+            api_key_file: None,
             env_key_instructions: None,
             experimental_bearer_token: None,
             auth: None,
@@ -389,11 +421,13 @@ impl ModelProviderInfo {
         ModelProviderInfo {
             name: DEEPSEEK_PROVIDER_NAME.into(),
             base_url: Some(DEEPSEEK_DEFAULT_BASE_URL.into()),
-            env_key: Some("DEEPSEEK_API_KEY".to_string()),
+            env_key: None,
+            api_key_file: Some("~/.runnly/secrets/deepseek-api-key".to_string()),
             env_key_instructions: Some(
                 "Get your DeepSeek API key from https://platform.deepseek.com/api_keys\n\
-                 Then set it in your environment:\n\
-                 export DEEPSEEK_API_KEY=your-api-key-here"
+                 Then either set it in your environment:\n\
+                 export DEEPSEEK_API_KEY=your-api-key-here\n\
+                 or place it in ~/.runnly/secrets/deepseek-api-key"
                     .to_string(),
             ),
             experimental_bearer_token: None,
@@ -427,6 +461,15 @@ impl ModelProviderInfo {
     pub fn has_command_auth(&self) -> bool {
         self.auth.is_some()
     }
+}
+
+fn expand_tilde(path: &str) -> std::path::PathBuf {
+    if let Some(rest) = path.strip_prefix("~/")
+        && let Some(home) = std::env::var_os("HOME")
+    {
+        return std::path::PathBuf::from(home).join(rest);
+    }
+    std::path::PathBuf::from(path)
 }
 
 pub const DEFAULT_LMSTUDIO_PORT: u16 = 1234;
@@ -524,11 +567,12 @@ pub fn create_oss_provider(default_provider_port: u16, wire_api: WireApi) -> Mod
 }
 
 pub fn create_oss_provider_with_base_url(base_url: &str, wire_api: WireApi) -> ModelProviderInfo {
-    ModelProviderInfo {
-        name: "gpt-oss".into(),
-        base_url: Some(base_url.into()),
-        env_key: None,
-        env_key_instructions: None,
+        ModelProviderInfo {
+            name: "gpt-oss".into(),
+            base_url: Some(base_url.into()),
+            env_key: None,
+            api_key_file: None,
+            env_key_instructions: None,
         experimental_bearer_token: None,
         auth: None,
         aws: None,

@@ -1,12 +1,12 @@
 # Provider Configuration Guide
 
-Runnly-agent supports any OpenAI-compatible LLM provider. No OpenAI account required!
+Runnly supports any OpenAI-compatible LLM provider. No OpenAI account required!
 
 **Quick Start**: See [example-config.toml](./example-config.toml) for ready-to-use configuration examples for all providers.
 
 ## Configuration Hierarchy
 
-Runnly-agent looks for configuration in:
+Runnly looks for configuration in:
 1. Command-line arguments: `--model gpt-4`
 2. Environment variables: `OPENAI_API_KEY`
 3. Config file: `~/.codex/config.toml`
@@ -177,7 +177,7 @@ wire_api = "responses"
 
 ## Provider Requirements
 
-For a provider to work with Runnly-agent, it must:
+For a provider to work with Runnly, it must:
 
 1. **Support OpenAI-compatible API format**
    - REST API at `/v1/chat/completions` or `/v1/responses`
@@ -269,4 +269,4 @@ curl https://api.your-provider.com/v1/chat/completions \
 
 - See [config.md](./docs/config.md) for full configuration reference
 - See [README.md](./README.md) for general usage
-- Report issues: [GitHub Issues](https://github.com/[your-username]/runnly-agent/issues)
+- Report issues: [GitHub Issues](https://github.com/[your-username]/Runnly/issues)
