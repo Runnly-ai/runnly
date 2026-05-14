@@ -87,11 +87,13 @@ use codex_rollout_trace::InferenceTraceContext;
 use codex_tools::create_tools_json_for_responses_api;
 use eventsource_stream::Event;
 use eventsource_stream::EventStreamError;
+use eventsource_stream::Eventsource;
 use futures::StreamExt;
 use http::HeaderMap as ApiHeaderMap;
 use http::HeaderValue;
 use http::StatusCode as HttpStatusCode;
 use reqwest::StatusCode;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::mpsc;
@@ -147,6 +149,43 @@ const RESPONSES_WEBSOCKETS_V2_BETA_HEADER_VALUE: &str = "responses_websockets=20
 const RESPONSES_ENDPOINT: &str = "/responses";
 const RESPONSES_COMPACT_ENDPOINT: &str = "/responses/compact";
 const MEMORIES_SUMMARIZE_ENDPOINT: &str = "/memories/trace_summarize";
+const CHAT_COMPLETIONS_ENDPOINT: &str = "/chat/completions";
+
+#[derive(Debug, Clone, Serialize)]
+struct ChatCompletionsRequest {
+    model: String,
+    messages: Vec<ChatMessage>,
+    stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning_effort: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thinking: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ChatMessage {
+    role: String,
+    content: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatCompletionsChunk {
+    #[allow(dead_code)]
+    id: Option<String>,
+    choices: Vec<ChatCompletionChoiceChunk>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatCompletionChoiceChunk {
+    delta: ChatCompletionDeltaChunk,
+    finish_reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatCompletionDeltaChunk {
+    content: Option<String>,
+    reasoning_content: Option<String>,
+}
 #[cfg(test)]
 pub(crate) const WEBSOCKET_CONNECT_TIMEOUT: Duration =
     Duration::from_millis(DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS);
@@ -765,6 +804,47 @@ impl ModelClient {
         Ok(request)
     }
 
+    fn build_chat_completions_request(
+        &self,
+        prompt: &Prompt,
+        model_info: &ModelInfo,
+        effort: Option<ReasoningEffortConfig>,
+    ) -> ChatCompletionsRequest {
+        let mut messages = Vec::new();
+        if !prompt.base_instructions.text.is_empty() {
+            messages.push(ChatMessage {
+                role: "system".to_string(),
+                content: prompt.base_instructions.text.clone(),
+            });
+        }
+
+        for item in prompt.get_formatted_input() {
+            if let ResponseItem::Message { role, content, .. } = item {
+                let content = content
+                    .into_iter()
+                    .map(|content_item| match content_item {
+                        codex_protocol::models::ContentItem::InputText { text }
+                        | codex_protocol::models::ContentItem::OutputText { text } => text,
+                        codex_protocol::models::ContentItem::InputImage { .. } => {
+                            "[image omitted]".to_string()
+                        }
+                    })
+                    .collect::<String>();
+                if !content.is_empty() {
+                    messages.push(ChatMessage { role, content });
+                }
+            }
+        }
+
+        ChatCompletionsRequest {
+            model: model_info.slug.clone(),
+            messages,
+            stream: true,
+            reasoning_effort: effort.map(|value| value.to_string()),
+            thinking: Some(serde_json::json!({"type": "enabled"})),
+        }
+    }
+
     /// Returns whether the Responses-over-WebSocket transport is active for this session.
     ///
     /// WebSocket use is controlled by provider capability and session-scoped fallback state.
@@ -1305,6 +1385,250 @@ impl ModelClientSession {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    #[instrument(
+        name = "model_client.stream_chat_completions",
+        level = "info",
+        skip_all,
+        fields(
+            model = %model_info.slug,
+            wire_api = %self.client.state.provider.info().wire_api,
+            transport = "chat_completions_http",
+            http.method = "POST",
+            api.path = "chat/completions",
+            turn.has_metadata_header = turn_metadata_header.is_some()
+        )
+    )]
+    async fn stream_chat_completions(
+        &self,
+        prompt: &Prompt,
+        model_info: &ModelInfo,
+        session_telemetry: &SessionTelemetry,
+        effort: Option<ReasoningEffortConfig>,
+        turn_metadata_header: Option<&str>,
+        inference_trace: &InferenceTraceContext,
+    ) -> Result<ResponseStream> {
+        let client_setup = self.client.current_client_setup().await?;
+        let request_auth_context = AuthRequestTelemetryContext::new(
+            client_setup.auth.as_ref().map(CodexAuth::auth_mode),
+            client_setup.api_auth.as_ref(),
+            PendingUnauthorizedRetry::default(),
+        );
+        let (_request_telemetry, _sse_telemetry) = Self::build_streaming_telemetry(
+            session_telemetry,
+            request_auth_context,
+            RequestRouteTelemetry::for_endpoint(CHAT_COMPLETIONS_ENDPOINT),
+            self.client.state.auth_env_telemetry.clone(),
+        );
+        let mut headers = build_session_headers(
+            Some(self.client.state.session_id.to_string()),
+            Some(self.client.state.thread_id.to_string()),
+        );
+        headers.extend(self.client.build_responses_identity_headers());
+        if let Some(header_value) = self.client.generate_attestation_header_for().await {
+            headers.insert(X_OAI_ATTESTATION_HEADER, header_value);
+        }
+
+        let request = self
+            .client
+            .build_chat_completions_request(prompt, model_info, effort);
+        let url = format!(
+            "{}{}",
+            client_setup.api_provider.base_url, CHAT_COMPLETIONS_ENDPOINT
+        );
+        let body = serde_json::to_value(&request).map_err(|err| {
+            codex_protocol::error::CodexErr::Stream(
+                format!("failed to encode chat request: {err}"),
+                None,
+            )
+        })?;
+        headers.insert(
+            http::header::ACCEPT,
+            HeaderValue::from_static("text/event-stream"),
+        );
+        headers.insert(
+            http::header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+        let inference_trace_attempt = inference_trace.start_attempt();
+        inference_trace_attempt.add_request_headers(&mut headers);
+        inference_trace_attempt.record_started(&request);
+
+        let http = build_reqwest_client();
+        let response = http
+            .post(url)
+            .headers(headers)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|err| {
+                codex_protocol::error::CodexErr::Stream(
+                    format!("DeepSeek request failed: {err}"),
+                    None,
+                )
+            })?;
+        let upstream_request_id = response
+            .headers()
+            .get("x-request-id")
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string);
+        let mut stream = response.bytes_stream().eventsource();
+        let (tx_event, rx_event) =
+            mpsc::channel::<Result<ResponseEvent>>(RESPONSE_STREAM_CHANNEL_CAPACITY);
+        let consumer_dropped = CancellationToken::new();
+        let consumer_dropped_for_stream = consumer_dropped.clone();
+        let stream_idle_timeout = self.client.state.provider.info().stream_idle_timeout();
+        tokio::spawn(async move {
+            let mut seen_created = false;
+            let mut assistant_text = String::new();
+            let mut response_id = upstream_request_id
+                .clone()
+                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+            let mut sent_output_item = false;
+            loop {
+                let response = tokio::time::timeout(stream_idle_timeout, stream.next()).await;
+                let event = match response {
+                    Ok(Some(Ok(event))) => event,
+                    Ok(Some(Err(err))) => {
+                        let _ = tx_event
+                            .send(Err(codex_protocol::error::CodexErr::Stream(
+                                format!("SSE error: {err}"),
+                                None,
+                            )))
+                            .await;
+                        return;
+                    }
+                    Ok(None) => break,
+                    Err(_) => {
+                        let _ = tx_event
+                            .send(Err(codex_protocol::error::CodexErr::Stream(
+                                "idle timeout waiting for SSE".into(),
+                                None,
+                            )))
+                            .await;
+                        return;
+                    }
+                };
+
+                let event = match serde_json::from_str::<ChatCompletionsChunk>(&event.data) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        trace!("failed to parse chat completion chunk: {err}");
+                        continue;
+                    }
+                };
+
+                if response_id.is_empty()
+                    && let Some(id) = event.id
+                {
+                    response_id = id;
+                }
+
+                if !seen_created {
+                    seen_created = true;
+                    if tx_event.send(Ok(ResponseEvent::Created)).await.is_err() {
+                        return;
+                    }
+                }
+
+                for choice in event.choices {
+                    if !sent_output_item {
+                        sent_output_item = true;
+                        let output_item = ResponseItem::Message {
+                            id: Some(response_id.clone()),
+                            role: "assistant".to_string(),
+                            content: vec![codex_protocol::models::ContentItem::OutputText {
+                                text: String::new(),
+                            }],
+                            phase: None,
+                        };
+                        if tx_event
+                            .send(Ok(ResponseEvent::OutputItemAdded(output_item)))
+                            .await
+                            .is_err()
+                        {
+                            return;
+                        }
+                    }
+
+                    if let Some(content) = choice.delta.content {
+                        assistant_text.push_str(&content);
+                        if tx_event
+                            .send(Ok(ResponseEvent::OutputTextDelta(content)))
+                            .await
+                            .is_err()
+                        {
+                            return;
+                        }
+                    }
+
+                    if let Some(reasoning) = choice.delta.reasoning_content
+                        && tx_event
+                            .send(Ok(ResponseEvent::ReasoningContentDelta {
+                                delta: reasoning,
+                                content_index: 0,
+                            }))
+                            .await
+                            .is_err()
+                    {
+                        return;
+                    }
+
+                    if choice.finish_reason.is_some() {
+                        let output_item = ResponseItem::Message {
+                            id: Some(response_id.clone()),
+                            role: "assistant".to_string(),
+                            content: vec![codex_protocol::models::ContentItem::OutputText {
+                                text: assistant_text.clone(),
+                            }],
+                            phase: None,
+                        };
+                        if tx_event
+                            .send(Ok(ResponseEvent::OutputItemDone(output_item)))
+                            .await
+                            .is_err()
+                        {
+                            return;
+                        }
+                        let _ = tx_event
+                            .send(Ok(ResponseEvent::Completed {
+                                response_id: response_id.clone(),
+                                token_usage: None,
+                                end_turn: Some(true),
+                            }))
+                            .await;
+                        return;
+                    }
+                }
+            }
+            if !assistant_text.is_empty() && sent_output_item {
+                let output_item = ResponseItem::Message {
+                    id: Some(response_id.clone()),
+                    role: "assistant".to_string(),
+                    content: vec![codex_protocol::models::ContentItem::OutputText {
+                        text: assistant_text,
+                    }],
+                    phase: None,
+                };
+                let _ = tx_event
+                    .send(Ok(ResponseEvent::OutputItemDone(output_item)))
+                    .await;
+            }
+            let _ = tx_event
+                .send(Ok(ResponseEvent::Completed {
+                    response_id,
+                    token_usage: None,
+                    end_turn: Some(true),
+                }))
+                .await;
+            let _ = consumer_dropped_for_stream;
+        });
+        Ok(ResponseStream {
+            rx_event,
+            consumer_dropped: consumer_dropped_for_stream,
+        })
+    }
+
     /// Streams a turn via the Responses API over WebSocket transport.
     #[allow(clippy::too_many_arguments)]
     #[instrument(
@@ -1589,6 +1913,17 @@ impl ModelClientSession {
                     effort,
                     summary,
                     service_tier,
+                    turn_metadata_header,
+                    inference_trace,
+                )
+                .await
+            }
+            WireApi::ChatCompletions => {
+                self.stream_chat_completions(
+                    prompt,
+                    model_info,
+                    session_telemetry,
+                    effort,
                     turn_metadata_header,
                     inference_trace,
                 )

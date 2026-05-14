@@ -3932,6 +3932,13 @@
             "responses"
           ],
           "type": "string"
+        },
+        {
+          "description": "The Chat Completions API exposed by DeepSeek-compatible providers at `/v1/chat/completions`.",
+          "enum": [
+            "chatcompletions"
+          ],
+          "type": "string"
         }
       ]
     }

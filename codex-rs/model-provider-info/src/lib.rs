@@ -16,12 +16,12 @@ use codex_protocol::error::Result as CodexResult;
 use http::HeaderMap;
 use http::header::HeaderName;
 use http::header::HeaderValue;
-use std::fs;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
+use std::fs;
 use std::time::Duration;
 
 const DEFAULT_STREAM_IDLE_TIMEOUT_MS: u64 = 300_000;
@@ -57,12 +57,15 @@ pub enum WireApi {
     /// The Responses API exposed by OpenAI at `/v1/responses`.
     #[default]
     Responses,
+    /// The Chat Completions API exposed by DeepSeek-compatible providers at `/v1/chat/completions`.
+    ChatCompletions,
 }
 
 impl fmt::Display for WireApi {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let value = match self {
             Self::Responses => "responses",
+            Self::ChatCompletions => "chat_completions",
         };
         f.write_str(value)
     }
@@ -76,8 +79,13 @@ impl<'de> Deserialize<'de> for WireApi {
         let value = String::deserialize(deserializer)?;
         match value.as_str() {
             "responses" => Ok(Self::Responses),
+            "chat_completions" => Ok(Self::ChatCompletions),
+            "chatcompletions" => Ok(Self::ChatCompletions),
             "chat" => Err(serde::de::Error::custom(CHAT_WIRE_API_REMOVED_ERROR)),
-            _ => Err(serde::de::Error::unknown_variant(&value, &["responses"])),
+            _ => Err(serde::de::Error::unknown_variant(
+                &value,
+                &["responses", "chat_completions", "chatcompletions"],
+            )),
         }
     }
 }
@@ -358,7 +366,7 @@ impl ModelProviderInfo {
             experimental_bearer_token: None,
             auth: None,
             aws: None,
-            wire_api: WireApi::Responses,
+            wire_api: WireApi::ChatCompletions,
             query_params: None,
             http_headers: Some(
                 [("version".to_string(), env!("CARGO_PKG_VERSION").to_string())]
@@ -567,12 +575,12 @@ pub fn create_oss_provider(default_provider_port: u16, wire_api: WireApi) -> Mod
 }
 
 pub fn create_oss_provider_with_base_url(base_url: &str, wire_api: WireApi) -> ModelProviderInfo {
-        ModelProviderInfo {
-            name: "gpt-oss".into(),
-            base_url: Some(base_url.into()),
-            env_key: None,
-            api_key_file: None,
-            env_key_instructions: None,
+    ModelProviderInfo {
+        name: "gpt-oss".into(),
+        base_url: Some(base_url.into()),
+        env_key: None,
+        api_key_file: None,
+        env_key_instructions: None,
         experimental_bearer_token: None,
         auth: None,
         aws: None,
