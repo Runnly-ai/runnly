@@ -1416,14 +1416,14 @@ mod tests {
         let items = vec![
             SelectionItem {
                 name: "Read Only".to_string(),
-                description: Some("Codex can read files".to_string()),
+                description: Some("Runnly can read files".to_string()),
                 is_current: true,
                 dismiss_on_select: true,
                 ..Default::default()
             },
             SelectionItem {
                 name: "Full Access".to_string(),
-                description: Some("Codex can edit files".to_string()),
+                description: Some("Runnly can edit files".to_string()),
                 is_current: false,
                 dismiss_on_select: true,
                 ..Default::default()
@@ -1615,7 +1615,7 @@ mod tests {
         let tx = AppEventSender::new(tx_raw);
         let items = vec![SelectionItem {
             name: "Read Only".to_string(),
-            description: Some("Codex can read files".to_string()),
+            description: Some("Runnly can read files".to_string()),
             is_current: true,
             dismiss_on_select: true,
             ..Default::default()
@@ -1647,7 +1647,7 @@ mod tests {
         let tx = AppEventSender::new(tx_raw);
         let items = vec![SelectionItem {
             name: "Read Only".to_string(),
-            description: Some("Codex can read files".to_string()),
+            description: Some("Runnly can read files".to_string()),
             is_current: false,
             dismiss_on_select: true,
             ..Default::default()
@@ -2278,7 +2278,7 @@ mod tests {
             SelectionItem {
                 name: "gpt-5.1-codex".to_string(),
                 description: Some(
-                    "Optimized for Codex. Balance of reasoning quality and coding ability."
+                    "Optimized for Runnly. Balance of reasoning quality and coding ability."
                         .to_string(),
                 ),
                 is_current: true,
@@ -2288,7 +2288,7 @@ mod tests {
             SelectionItem {
                 name: "gpt-5.1-codex-mini".to_string(),
                 description: Some(
-                    "Optimized for Codex. Cheaper, faster, but less capable.".to_string(),
+                    "Optimized for Runnly. Cheaper, faster, but less capable.".to_string(),
                 ),
                 dismiss_on_select: true,
                 ..Default::default()
@@ -2360,7 +2360,7 @@ mod tests {
             SelectionItem {
                 name: "gpt-5.1-codex".to_string(),
                 description: Some(
-                    "Optimized for Codex. Balance of reasoning quality and coding ability."
+                    "Optimized for Runnly. Balance of reasoning quality and coding ability."
                         .to_string(),
                 ),
                 is_current: true,
@@ -2370,7 +2370,7 @@ mod tests {
             SelectionItem {
                 name: "gpt-5.1-codex-mini".to_string(),
                 description: Some(
-                    "Optimized for Codex. Cheaper, faster, but less capable.".to_string(),
+                    "Optimized for Runnly. Cheaper, faster, but less capable.".to_string(),
                 ),
                 dismiss_on_select: true,
                 ..Default::default()
