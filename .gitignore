@@ -18,6 +18,8 @@ storybook-static/
 # ignore README for publishing
 codex-cli/README.md
 
+config.toml
+
 # ignore Nix derivation results
 result
 

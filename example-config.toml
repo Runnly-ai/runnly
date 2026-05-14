@@ -1,0 +1,147 @@
+# Runnly-agent Configuration Examples
+# Copy sections to ~/.codex/config.toml (Linux/Mac) or %USERPROFILE%\.codex\config.toml (Windows)
+
+# ====================
+# BASIC CONFIGURATION
+# ====================
+
+# Choose your default provider (deepseek, openai, anthropic, ollama, etc.)
+model_provider = "deepseek"
+
+# Choose your model
+model = "deepseek-v4-flash"
+
+# ====================
+# DEEPSEEK (Built-in)
+# ====================
+# Fast, cost-effective provider with strong reasoning
+# Just set: export DEEPSEEK_API_KEY=your-key-here
+
+# Use deepseek-v4-flash for speed and economy
+model_provider = "deepseek"
+model = "deepseek-v4-flash"
+
+# Or use deepseek-v4-pro for better reasoning
+# model_provider = "deepseek"
+# model = "deepseek-v4-pro"
+
+# ====================
+# OPENAI (Built-in)
+# ====================
+# Just set: export OPENAI_API_KEY=sk-your-key-here
+
+# model_provider = "openai"
+# model = "gpt-4o"
+
+# ====================
+# OLLAMA (Built-in)
+# ====================
+# For local models - no API key needed
+
+# model_provider = "ollama"
+# model = "llama3:latest"
+
+# [model_providers.ollama]
+# base_url = "http://localhost:11434/v1"
+
+# ====================
+# ANTHROPIC (Custom)
+# ====================
+# Set: export ANTHROPIC_API_KEY=sk-ant-your-key-here
+
+# model_provider = "anthropic"
+# model = "claude-3-5-sonnet-20241022"
+
+# [model_providers.anthropic]
+# name = "Anthropic"
+# base_url = "https://api.anthropic.com/v1"
+# env_key = "ANTHROPIC_API_KEY"
+# wire_api = "responses"
+
+# ====================
+# AZURE OPENAI (Custom)
+# ====================
+# Set: export AZURE_OPENAI_API_KEY=your-azure-key
+
+# model_provider = "azure"
+# model = "gpt-4"
+
+# [model_providers.azure]
+# name = "Azure OpenAI"
+# base_url = "https://your-resource.openai.azure.com/openai/deployments/your-deployment"
+# env_key = "AZURE_OPENAI_API_KEY"
+# wire_api = "responses"
+
+# [model_providers.azure.http_headers]
+# api-version = "2024-02-15-preview"
+
+# ====================
+# GROQ (Custom)
+# ====================
+# Set: export GROQ_API_KEY=gsk_your-key-here
+
+# model_provider = "groq"
+# model = "llama-3.1-70b-versatile"
+
+# [model_providers.groq]
+# name = "Groq"
+# base_url = "https://api.groq.com/openai/v1"
+# env_key = "GROQ_API_KEY"
+# wire_api = "responses"
+
+# ====================
+# TOGETHER AI (Custom)
+# ====================
+# Set: export TOGETHER_API_KEY=your-key-here
+
+# model_provider = "together"
+# model = "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"
+
+# [model_providers.together]
+# name = "Together AI"
+# base_url = "https://api.together.xyz/v1"
+# env_key = "TOGETHER_API_KEY"
+# wire_api = "responses"
+
+# ====================
+# CUSTOM PROVIDER
+# ====================
+# For any OpenAI-compatible API
+
+# model_provider = "custom"
+# model = "your-model-name"
+
+# [model_providers.custom]
+# name = "My Custom LLM"
+# base_url = "https://api.your-provider.com/v1"
+# env_key = "CUSTOM_API_KEY"
+# wire_api = "responses"
+
+# ====================
+# ADVANCED OPTIONS
+# ====================
+
+# Model parameters
+# [model_parameters]
+# temperature = 0.7
+# max_tokens = 4096
+# top_p = 0.9
+
+# DeepSeek reasoning (for v4-pro)
+# [model_parameters]
+# thinking = { type = "enabled" }
+# reasoning_effort = "high"  # Options: "low", "medium", "high"
+
+# Retry configuration
+# [model_providers.deepseek]
+# request_max_retries = 3
+# stream_max_retries = 5
+# stream_idle_timeout_ms = 300000
+
+# Custom headers
+# [model_providers.custom.http_headers]
+# X-Custom-Header = "value"
+
+# Environment-based headers
+# [model_providers.custom.env_http_headers]
+# X-Api-Key = "MY_SECRET_ENV_VAR"

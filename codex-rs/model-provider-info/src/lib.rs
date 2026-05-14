@@ -35,6 +35,9 @@ const MAX_REQUEST_MAX_RETRIES: u64 = 100;
 const OPENAI_PROVIDER_NAME: &str = "OpenAI";
 pub const OPENAI_PROVIDER_ID: &str = "openai";
 pub const CHATGPT_CODEX_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
+const DEEPSEEK_PROVIDER_NAME: &str = "DeepSeek";
+pub const DEEPSEEK_PROVIDER_ID: &str = "deepseek";
+const DEEPSEEK_DEFAULT_BASE_URL: &str = "https://api.deepseek.com";
 const AMAZON_BEDROCK_PROVIDER_NAME: &str = "Amazon Bedrock";
 pub const AMAZON_BEDROCK_PROVIDER_ID: &str = "amazon-bedrock";
 pub const AMAZON_BEDROCK_GPT_5_4_MODEL_ID: &str = "openai.gpt-5.4";
@@ -319,8 +322,8 @@ impl ModelProviderInfo {
         ModelProviderInfo {
             name: OPENAI_PROVIDER_NAME.into(),
             base_url,
-            env_key: None,
-            env_key_instructions: None,
+            env_key: Some("OPENAI_API_KEY".to_string()),
+            env_key_instructions: Some("Get your API key from https://platform.openai.com/api-keys\nSet it with: export OPENAI_API_KEY=your-api-key-here".to_string()),
             experimental_bearer_token: None,
             auth: None,
             aws: None,
@@ -347,7 +350,7 @@ impl ModelProviderInfo {
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
             websocket_connect_timeout_ms: None,
-            requires_openai_auth: true,
+            requires_openai_auth: false,
             supports_websockets: true,
         }
     }
@@ -372,6 +375,33 @@ impl ModelProviderInfo {
                 AMAZON_BEDROCK_MANTLE_CLIENT_AGENT_HEADER.to_string(),
                 AMAZON_BEDROCK_MANTLE_CLIENT_AGENT_VALUE.to_string(),
             )])),
+            env_http_headers: None,
+            request_max_retries: None,
+            stream_max_retries: None,
+            stream_idle_timeout_ms: None,
+            websocket_connect_timeout_ms: None,
+            requires_openai_auth: false,
+            supports_websockets: false,
+        }
+    }
+
+    pub fn create_deepseek_provider() -> ModelProviderInfo {
+        ModelProviderInfo {
+            name: DEEPSEEK_PROVIDER_NAME.into(),
+            base_url: Some(DEEPSEEK_DEFAULT_BASE_URL.into()),
+            env_key: Some("DEEPSEEK_API_KEY".to_string()),
+            env_key_instructions: Some(
+                "Get your DeepSeek API key from https://platform.deepseek.com/api_keys\n\
+                 Then set it in your environment:\n\
+                 export DEEPSEEK_API_KEY=your-api-key-here"
+                    .to_string(),
+            ),
+            experimental_bearer_token: None,
+            auth: None,
+            aws: None,
+            wire_api: WireApi::Responses,
+            query_params: None,
+            http_headers: None,
             env_http_headers: None,
             request_max_retries: None,
             stream_max_retries: None,
@@ -412,6 +442,7 @@ pub fn built_in_model_providers(
     use ModelProviderInfo as P;
     let openai_provider = P::create_openai_provider(openai_base_url);
     let amazon_bedrock_provider = P::create_amazon_bedrock_provider(/*aws*/ None);
+    let deepseek_provider = P::create_deepseek_provider();
 
     // We do not want to be in the business of adjucating which third-party
     // providers are bundled with Codex CLI, so we only include the OpenAI and
@@ -420,6 +451,7 @@ pub fn built_in_model_providers(
     [
         (OPENAI_PROVIDER_ID, openai_provider),
         (AMAZON_BEDROCK_PROVIDER_ID, amazon_bedrock_provider),
+        (DEEPSEEK_PROVIDER_ID, deepseek_provider),
         (
             OLLAMA_OSS_PROVIDER_ID,
             create_oss_provider(DEFAULT_OLLAMA_PORT, WireApi::Responses),

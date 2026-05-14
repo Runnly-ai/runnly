@@ -1,60 +1,167 @@
-<p align="center"><code>npm i -g @openai/codex</code><br />or <code>brew install --cask codex</code></p>
-<p align="center"><strong>Codex CLI</strong> is a coding agent from OpenAI that runs locally on your computer.
-<p align="center">
-  <img src="https://github.com/openai/codex/blob/main/.github/codex-cli-splash.png" alt="Codex CLI splash" width="80%" />
-</p>
-</br>
-If you want Codex in your code editor (VS Code, Cursor, Windsurf), <a href="https://developers.openai.com/codex/ide">install in your IDE.</a>
-</br>If you want the desktop app experience, run <code>codex app</code> or visit <a href="https://chatgpt.com/codex?app-landing-page=true">the Codex App page</a>.
-</br>If you are looking for the <em>cloud-based agent</em> from OpenAI, <strong>Codex Web</strong>, go to <a href="https://chatgpt.com/codex">chatgpt.com/codex</a>.</p>
+# Runnly-agent
+
+<p align="center"><strong>Runnly-agent</strong> is an AI coding agent that runs locally on your computer and works with OpenAI-compatible LLM models.</p>
+
+<p align="center">A fork of OpenAI's Codex, designed to support multiple OpenAI-compatible LLM providers including OpenAI, Azure OpenAI, Anthropic Claude, and other compatible APIs.</p>
 
 ---
 
+## Features
+
+- 🤖 **Multi-Model Support**: Works with any OpenAI-compatible API
+- 💻 **Local Execution**: Runs entirely on your machine
+- 🔧 **Extensible**: Built on the robust Codex architecture
+- 🔐 **Flexible Authentication**: Support for API keys from multiple providers
+
 ## Quickstart
 
-### Installing and running Codex CLI
+### Installing and running Runnly-agent
 
-Install globally with your preferred package manager:
-
-```shell
-# Install using npm
-npm install -g @openai/codex
-```
+#### Building from source:
 
 ```shell
-# Install using Homebrew
-brew install --cask codex
+# Clone the repository
+git clone the project
+cd runnly-agent
+
+# Build the project
+cd codex-rs
+cargo build --release
+
+# Run the agent
+cargo run --release -p codex-cli
+# Or run the binary directly after building:
+# ./codex-rs/target/release/codex
 ```
 
-Then simply run `codex` to get started.
+#### Pre-built binaries:
 
 <details>
-<summary>You can also go to the <a href="https://github.com/openai/codex/releases/latest">latest GitHub Release</a> and download the appropriate binary for your platform.</summary>
+<summary>Download from the <a href="https://github.com/[your-username]/runnly-agent/releases/latest">latest GitHub Release</a> (when available)</summary>
 
-Each GitHub Release contains many executables, but in practice, you likely want one of these:
+Pre-built binaries will be available for:
 
-- macOS
-  - Apple Silicon/arm64: `codex-aarch64-apple-darwin.tar.gz`
-  - x86_64 (older Mac hardware): `codex-x86_64-apple-darwin.tar.gz`
-- Linux
-  - x86_64: `codex-x86_64-unknown-linux-musl.tar.gz`
-  - arm64: `codex-aarch64-unknown-linux-musl.tar.gz`
+- macOS (Apple Silicon/arm64 and x86_64)
+- Linux (x86_64 and arm64)
+- Windows
 
-Each archive contains a single entry with the platform baked into the name (e.g., `codex-x86_64-unknown-linux-musl`), so you likely want to rename it to `codex` after extracting it.
+Extract the archive and run the binary directly.
 
 </details>
 
-### Using Codex with your ChatGPT plan
+### Configuration
 
-Run `codex` and select **Sign in with ChatGPT**. We recommend signing into your ChatGPT account to use Codex as part of your Plus, Pro, Business, Edu, or Enterprise plan. [Learn more about what's included in your ChatGPT plan](https://help.openai.com/en/articles/11369540-codex-in-chatgpt).
+Runnly-agent works with any OpenAI-compatible LLM provider using API keys. **No OpenAI account required!**
 
-You can also use Codex with an API key, but this requires [additional setup](https://developers.openai.com/codex/auth#sign-in-with-an-api-key).
+#### Quick Start with Environment Variables
 
-## Docs
+Set your API key as an environment variable:
 
-- [**Codex Documentation**](https://developers.openai.com/codex)
+```shell
+# For OpenAI
+export OPENAI_API_KEY=your-api-key-here
+
+# For DeepSeek (recommended - fast and cost-effective)
+export DEEPSEEK_API_KEY=your-api-key-here
+
+# For other providers (see examples below)
+export CUSTOM_API_KEY=your-api-key-here
+```
+
+Then run:
+```shell
+cd codex-rs
+cargo run --release -p codex-cli
+```
+
+#### Supported Providers
+
+**DeepSeek** (fast, cost-effective, built-in):
+```shell
+export DEEPSEEK_API_KEY=your-api-key
+cargo run --release -p codex-cli -- --model-provider deepseek --model deepseek-v4-flash
+```
+
+Or create `~/.codex/config.toml`:
+```toml
+model_provider = "deepseek"
+model = "deepseek-v4-flash"
+```
+
+See [deepseek-config.toml](./deepseek-config.toml) for a complete example.
+
+Available models:
+- `deepseek-v4-flash` - Fast and cost-effective
+- `deepseek-v4-pro` - More capable reasoning
+
+**OpenAI** (default):
+```shell
+export OPENAI_API_KEY=sk-...
+cargo run --release -p codex-cli
+```
+
+**Anthropic Claude** (via OpenAI-compatible endpoint):
+```toml
+# ~/.codex/config.toml
+model_provider = "anthropic"
+model = "claude-3-5-sonnet-20241022"
+
+[model_providers.anthropic]
+name = "Anthropic"
+base_url = "https://api.anthropic.com/v1"
+env_key = "ANTHROPIC_API_KEY"
+```
+
+**Azure OpenAI**:
+```toml
+# ~/.codex/config.toml
+model_provider = "azure"
+
+[model_providers.azure]
+name = "Azure OpenAI"
+base_url = "https://your-resource.openai.azure.com/openai/deployments/your-deployment"
+env_key = "AZURE_OPENAI_API_KEY"
+```
+
+**Ollama** (local models):
+```toml
+# ~/.codex/config.toml
+model_provider = "ollama"
+model = "llama3:latest"
+
+[model_providers.ollama]
+name = "Ollama"
+base_url = "http://localhost:11434/v1"
+```
+
+**Any OpenAI-compatible endpoint**:
+```toml
+# ~/.codex/config.toml
+model_provider = "custom"
+model = "your-model-name"
+
+[model_providers.custom]
+name = "My Custom LLM"
+base_url = "https://api.your-llm.com/v1"
+env_key = "YOUR_API_KEY_ENV_VAR"
+```
+
+**See [example-config.toml](./example-config.toml) for a complete configuration reference with all providers.**
+
+For more details, see the [config documentation](./docs/config.md).
+
+## Documentation
+
+- [**Provider Configuration Guide**](./PROVIDERS.md) - Configure different LLM providers
+- [**Configuration Guide**](./docs/config.md)
 - [**Contributing**](./docs/contributing.md)
-- [**Installing & building**](./docs/install.md)
-- [**Open source fund**](./docs/open-source-fund.md)
+- [**Building from Source**](./docs/install.md)
+- [**Original Codex Documentation**](https://developers.openai.com/codex) (upstream reference)
+
+## About
+
+Runnly-agent is a fork of [OpenAI's Codex](https://github.com/openai/codex), extended to work with any OpenAI-compatible LLM API. This project maintains compatibility with the original Codex architecture while adding flexibility to use your preferred AI model provider.
+
+To sync updates from the upstream OpenAI Codex repository, see the [contributing guide](./docs/contributing.md).
 
 This repository is licensed under the [Apache-2.0 License](LICENSE).
