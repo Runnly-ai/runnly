@@ -8,10 +8,14 @@
 
 ## Features
 
-- 🤖 **Multi-Model Support**: Works with any OpenAI-compatible API
-- 💻 **Local Execution**: Runs entirely on your machine
-- 🔧 **Extensible**: Built on the robust Codex architecture
-- 🔐 **Flexible Authentication**: Support for API keys from multiple providers
+| Feature | Support |
+| --- | --- |
+| Multi-Model Support | Works with OpenAI-compatible providers |
+| Responses API | Supported for modern OpenAI-style providers |
+| Chat Completions API | Supported for older compatible providers |
+| Local Execution | Runs entirely on your machine |
+| Extensible | Built on the Codex architecture |
+| Flexible Authentication | Supports API keys from multiple providers |
 
 ## Quickstart
 
