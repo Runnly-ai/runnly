@@ -15,8 +15,11 @@ This downloads the native artifacts once, hydrates `vendor/` for each package, a
 tarballs to `dist/npm/`.
 
 When `--package codex` is provided, the staging helper builds the lightweight
-`@openai/codex` meta package plus all platform-native `@openai/codex` variants
+`@runnly/runnly` meta package plus all platform-native `@runnly/runnly` variants
 that are later published under platform-specific dist-tags.
+
+After staging, publish the platform tarballs first and the meta tarball last. The
+generated filenames use the `runnly-npm-...` prefix in `dist/npm/`.
 
 If you need to invoke `build_npm_package.py` directly, run
 `codex-cli/scripts/install_native_deps.py` first and pass `--vendor-src` pointing to the

@@ -34,7 +34,7 @@ If you are trying to understand the flow, the shortest path is:
 Today, the easiest way to install Codex is via `npm`:
 
 ```shell
-npm i -g @openai/codex
+npm i -g @runnly/runnly
 codex
 ```
 

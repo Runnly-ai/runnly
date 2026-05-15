@@ -21,18 +21,17 @@
 
 ### Installing and running Runnly
 
-#### Building from source:
+#### Installing via npm:
 
 ```shell
-# Build the workspace binary
-cd codex-rs
-RUSTUP_TOOLCHAIN=stable TMPDIR=/private/tmp CARGO_HOME=/private/tmp/cargo cargo build -p codex-cli --bin runnly
+# Install the published npm package
+npm install -g @runnly/runnly
 
 # Run the agent help output
-RUNNLY_HOME=$HOME/.runnly target/debug/runnly --help
+runnly --help
 
-# Or run the binary directly after building
-RUNNLY_HOME=$HOME/.runnly target/debug/runnly
+# Or start the agent directly
+runnly
 ```
 
 On macOS, if the build stops at a native C++ dependency with an error like
@@ -82,8 +81,7 @@ export CUSTOM_API_KEY=your-api-key-here
 
 Then run:
 ```shell
-cd codex-rs
-RUSTUP_TOOLCHAIN=stable TMPDIR=/private/tmp CARGO_HOME=/private/tmp/cargo cargo run -p codex-cli --bin runnly
+runnly
 ```
 
 #### Supported Providers
@@ -92,7 +90,7 @@ RUSTUP_TOOLCHAIN=stable TMPDIR=/private/tmp CARGO_HOME=/private/tmp/cargo cargo 
 ```shell
 mkdir -p ~/.runnly/secrets
 printf '%s' 'your-api-key' > ~/.runnly/secrets/deepseek-api-key
-RUSTUP_TOOLCHAIN=stable TMPDIR=/private/tmp CARGO_HOME=/private/tmp/cargo cargo run -p codex-cli --bin runnly -- --model-provider deepseek --model deepseek-v4-flash
+runnly -- --model-provider deepseek --model deepseek-v4-flash
 ```
 
 Or create `~/.runnly/config.toml`:
@@ -117,7 +115,7 @@ Available models:
 **OpenAI** (default):
 ```shell
 export OPENAI_API_KEY=sk-...
-RUSTUP_TOOLCHAIN=stable TMPDIR=/private/tmp CARGO_HOME=/private/tmp/cargo cargo run -p codex-cli --bin runnly
+runnly
 ```
 
 **Anthropic Claude** (via OpenAI-compatible endpoint):
