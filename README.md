@@ -59,6 +59,8 @@ Extract the archive and run the binary directly.
 
 Runnly works with any OpenAI-compatible LLM provider using API keys. **No OpenAI account required!**
 
+For older chat-completions providers, Runnly uses a compatibility path that converts internal `developer` instruction messages into `system` messages and omits chat-completions fields the provider does not accept. This lets providers like DeepSeek work through the chat-completions fallback even when they reject the raw OpenAI Responses shape.
+
 #### Quick Start with Environment Variables
 
 Set your API key as an environment variable:
@@ -99,6 +101,8 @@ name = "DeepSeek"
 base_url = "https://api.deepseek.com"
 api_key_file = "~/.runnly/secrets/deepseek-api-key"
 ```
+
+If you prefer an environment variable, set `env_key = "DEEPSEEK_API_KEY"` in the provider config and export that variable in the shell that launches Runnly. The key lookup order is `api_key_file`, then `env_key`, then any inline bearer token shipped in provider config.
 
 See [deepseek-config.toml](./deepseek-config.toml) for a complete example.
 

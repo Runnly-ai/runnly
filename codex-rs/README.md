@@ -53,6 +53,24 @@ The Rust implementation is now the maintained Codex CLI and serves as the defaul
 
 Codex supports a rich set of configuration options. Note that the Rust CLI uses `config.toml` instead of `config.json`. See [`docs/config.md`](../docs/config.md) for details.
 
+### Model providers and chat-completions compatibility
+
+Codex supports both the Responses API and older chat-completions-style providers. The Responses path is the default for OpenAI-backed flows, while some providers use a chat-completions fallback path with provider-specific request shaping.
+
+For chat-completions providers, Codex keeps the request compatible with older provider schemas by translating internal instruction-style `developer` messages to `system` before sending the request. It also omits fields that some providers reject, such as `reasoning_effort` and `parallel_tool_calls`, when building chat-completions requests for those providers.
+
+If a provider supports chat-completions but not the full Responses surface, the provider definition is expected to specify the compatible wire API and the request builder will use the matching role and tool formatting for that provider.
+
+### API key setup
+
+Provider keys can be supplied in three ways, checked in this order:
+
+1. `api_key_file`
+2. `env_key`
+3. `experimental_bearer_token`
+
+For file-based keys, point `api_key_file` at a readable text file containing the raw token. For environment-based keys, set the named environment variable in the shell that launches Codex. The inline bearer token is a last-resort fallback for providers that ship with an embedded token in config.
+
 ### Model Context Protocol Support
 
 #### MCP client
