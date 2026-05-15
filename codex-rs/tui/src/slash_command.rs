@@ -13,6 +13,7 @@ pub enum SlashCommand {
     // DO NOT ALPHA-SORT! Enum order is presentation order in the popup, so
     // more frequently used commands should be listed first.
     Model,
+    Profile,
     Ide,
     Permissions,
     Keymap,
@@ -99,6 +100,7 @@ impl SlashCommand {
             SlashCommand::Title => "configure which items appear in the terminal title",
             SlashCommand::Statusline => "configure which items appear in the status line",
             SlashCommand::Theme => "choose a syntax highlighting theme",
+            SlashCommand::Profile => "choose a provider and model profile",
             SlashCommand::Pets => "choose or hide the terminal pet",
             SlashCommand::Ps => "list background terminals",
             SlashCommand::Stop => "stop all background terminals",
@@ -215,6 +217,7 @@ impl SlashCommand {
             | SlashCommand::AutoReview
             | SlashCommand::Feedback
             | SlashCommand::Ide
+            | SlashCommand::Profile
             | SlashCommand::Quit
             | SlashCommand::Exit
             | SlashCommand::Side => true,

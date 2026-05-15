@@ -1503,6 +1503,7 @@ pub(crate) fn new_session_info(
 ) -> SessionInfoCell {
     // Header box rendered as history (so it appears at the very top)
     let header = SessionHeaderHistoryCell::new(
+        config.model_provider.name.clone(),
         session.model.clone(),
         session.reasoning_effort,
         show_fast_status,
@@ -1620,6 +1621,7 @@ pub(crate) fn new_user_prompt(
 #[derive(Debug)]
 pub(crate) struct SessionHeaderHistoryCell {
     version: &'static str,
+    provider: String,
     model: String,
     model_style: Style,
     reasoning_effort: Option<ReasoningEffortConfig>,
@@ -1630,6 +1632,7 @@ pub(crate) struct SessionHeaderHistoryCell {
 
 impl SessionHeaderHistoryCell {
     pub(crate) fn new(
+        provider: String,
         model: String,
         reasoning_effort: Option<ReasoningEffortConfig>,
         show_fast_status: bool,
@@ -1637,6 +1640,7 @@ impl SessionHeaderHistoryCell {
         version: &'static str,
     ) -> Self {
         Self::new_with_style(
+            provider,
             model,
             Style::default(),
             reasoning_effort,
@@ -1647,6 +1651,7 @@ impl SessionHeaderHistoryCell {
     }
 
     pub(crate) fn new_with_style(
+        provider: String,
         model: String,
         model_style: Style,
         reasoning_effort: Option<ReasoningEffortConfig>,
@@ -1656,6 +1661,7 @@ impl SessionHeaderHistoryCell {
     ) -> Self {
         Self {
             version,
+            provider,
             model,
             model_style,
             reasoning_effort,
@@ -1789,7 +1795,8 @@ impl HistoryCell for SessionHeaderHistoryCell {
         let mut lines = vec![
             Line::from(format!("Runnly (v{})", self.version)),
             Line::from(format!(
-                "model: {}{}",
+                "profile: {} / {}{}",
+                self.provider,
                 self.model,
                 self.reasoning_label()
                     .map(|reasoning| format!(" {reasoning}"))
@@ -4930,6 +4937,7 @@ mod tests {
     #[test]
     fn session_header_includes_reasoning_level_when_present() {
         let cell = SessionHeaderHistoryCell::new(
+            "OpenAI".to_string(),
             "gpt-4o".to_string(),
             Some(ReasoningEffortConfig::High),
             /*show_fast_status*/ true,
@@ -4938,18 +4946,19 @@ mod tests {
         );
 
         let lines = render_lines(&cell.display_lines(/*width*/ 80));
-        let model_line = lines
+        let profile_line = lines
             .iter()
-            .find(|line| line.contains("model:"))
-            .expect("model line");
+            .find(|line| line.contains("profile:"))
+            .expect("profile line");
 
-        assert!(model_line.contains("gpt-4o high   fast"));
-        assert!(model_line.contains("/model to change"));
+        assert!(profile_line.contains("OpenAI / gpt-4o high   fast"));
+        assert!(profile_line.contains("/profile to change"));
     }
 
     #[test]
     fn session_header_hides_fast_status_when_disabled() {
         let cell = SessionHeaderHistoryCell::new(
+            "OpenAI".to_string(),
             "gpt-4o".to_string(),
             Some(ReasoningEffortConfig::High),
             /*show_fast_status*/ false,
@@ -4958,13 +4967,13 @@ mod tests {
         );
 
         let lines = render_lines(&cell.display_lines(/*width*/ 80));
-        let model_line = lines
+        let profile_line = lines
             .iter()
-            .find(|line| line.contains("model:"))
-            .expect("model line");
+            .find(|line| line.contains("profile:"))
+            .expect("profile line");
 
-        assert!(model_line.contains("gpt-4o high"));
-        assert!(!model_line.contains("fast"));
+        assert!(profile_line.contains("OpenAI / gpt-4o high"));
+        assert!(!profile_line.contains("fast"));
     }
 
     #[test]

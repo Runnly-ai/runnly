@@ -1361,6 +1361,7 @@ impl ChatWidget {
         let placeholder_style = Style::default().add_modifier(Modifier::DIM | Modifier::ITALIC);
         Box::new(
             history_cell::SessionHeaderHistoryCell::new_with_style(
+                config.model_provider.name.clone(),
                 DEFAULT_MODEL_DISPLAY_NAME.to_string(),
                 placeholder_style,
                 /*reasoning_effort*/ None,

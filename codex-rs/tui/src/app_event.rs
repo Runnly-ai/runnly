@@ -617,6 +617,11 @@ pub(crate) enum AppEvent {
         effort: Option<ReasoningEffort>,
     },
 
+    /// Persist the selected profile name to the appropriate config.
+    PersistProfileSelection {
+        profile_name: String,
+    },
+
     /// Persist the selected personality to the appropriate config.
     PersistPersonalitySelection {
         personality: Personality,

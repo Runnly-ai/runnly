@@ -6,6 +6,7 @@ use codex_app_server_protocol::HookErrorInfo;
 use codex_app_server_protocol::HooksListEntry;
 use codex_app_server_protocol::HooksListResponse;
 use codex_app_server_protocol::MarketplaceRemoveResponse;
+use codex_config::profile_toml::ConfigProfile;
 use codex_features::Stage;
 use pretty_assertions::assert_eq;
 
@@ -2324,6 +2325,35 @@ async fn memories_settings_popup_snapshot() {
 
     let popup = render_bottom_popup(&chat, /*width*/ 80);
     assert_chatwidget_snapshot!("memories_settings_popup", popup);
+}
+
+#[tokio::test]
+async fn profile_selection_popup_snapshot() {
+    let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+    chat.config.profile = None;
+    chat.config.profiles = BTreeMap::from([
+        (
+            "deepseek".to_string(),
+            ConfigProfile {
+                model_provider: Some("deepseek".to_string()),
+                model: Some("deepseek-v3".to_string()),
+                ..Default::default()
+            },
+        ),
+        (
+            "openai".to_string(),
+            ConfigProfile {
+                model_provider: Some("openai".to_string()),
+                model: Some("gpt-5".to_string()),
+                ..Default::default()
+            },
+        ),
+    ]);
+
+    chat.open_profile_popup();
+
+    let popup = render_bottom_popup(&chat, /*width*/ 80);
+    assert_chatwidget_snapshot!("profile_selection_popup", popup);
 }
 
 #[tokio::test]

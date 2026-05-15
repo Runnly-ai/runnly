@@ -201,6 +201,9 @@ impl ChatWidget {
             SlashCommand::Model => {
                 self.open_model_popup();
             }
+            SlashCommand::Profile => {
+                self.open_profile_popup();
+            }
             SlashCommand::Realtime => {
                 if !self.realtime_conversation_enabled() {
                     return;
@@ -950,6 +953,7 @@ impl ChatWidget {
             | SlashCommand::Compact
             | SlashCommand::Review
             | SlashCommand::Model
+            | SlashCommand::Profile
             | SlashCommand::Realtime
             | SlashCommand::Settings
             | SlashCommand::Personality

@@ -92,6 +92,14 @@ pub fn syntax_theme_edit(name: &str) -> ConfigEdit {
     }
 }
 
+/// Produces a config edit that sets the active profile name at the root.
+pub fn active_profile_edit(name: &str) -> ConfigEdit {
+    ConfigEdit::SetPath {
+        segments: vec!["profile".to_string()],
+        value: value(name.to_string()),
+    }
+}
+
 /// Produces a config edit that sets [tui].pet = "<name>".
 pub fn tui_pet_edit(name: &str) -> ConfigEdit {
     ConfigEdit::SetPath {

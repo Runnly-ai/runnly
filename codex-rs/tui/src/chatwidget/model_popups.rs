@@ -4,6 +4,7 @@
 //! into another, especially while Plan mode is active.
 
 use super::*;
+use codex_config::TomlValue;
 
 impl ChatWidget {
     /// Open a popup to choose a quick auto model. Selecting "All models"
@@ -28,6 +29,109 @@ impl ChatWidget {
             }
         };
         self.open_model_popup_with_presets(presets);
+    }
+
+    pub(crate) fn open_profile_popup(&mut self) {
+        if !self.is_session_configured() {
+            self.add_info_message(
+                "Profile selection is disabled until startup completes.".to_string(),
+                /*hint*/ None,
+            );
+            return;
+        }
+
+        let effective_config = self.config.config_layer_stack.effective_config();
+        let profiles_table = effective_config
+            .as_table()
+            .and_then(|table| table.get("profiles"))
+            .and_then(TomlValue::as_table);
+        let active_profile = effective_config
+            .as_table()
+            .and_then(|table| table.get("profile"))
+            .and_then(TomlValue::as_str)
+            .map(str::to_string);
+
+        let mut profiles: Vec<(String, String)> = profiles_table
+            .into_iter()
+            .flat_map(|profiles| profiles.iter())
+            .filter_map(|(profile_name, profile)| {
+                let profile = profile.as_table()?;
+                let provider_id = profile
+                    .get("model_provider")
+                    .and_then(TomlValue::as_str)?
+                    .trim();
+                let model = profile.get("model").and_then(TomlValue::as_str)?.trim();
+                let provider_label = self
+                    .config
+                    .model_providers
+                    .get(provider_id)
+                    .map(|provider| provider.name.trim())
+                    .filter(|name| !name.is_empty())
+                    .unwrap_or(provider_id);
+                let label = format!("{provider_label} | {model}");
+                Some((profile_name.clone(), label))
+            })
+            .collect();
+
+        if profiles.is_empty()
+            && let Some(root_profile_label) = self
+                .config
+                .config_layer_stack
+                .effective_config()
+                .as_table()
+                .and_then(|table| {
+                    let provider_id = table.get("model_provider").and_then(TomlValue::as_str)?;
+                    let model = table.get("model").and_then(TomlValue::as_str)?;
+                    let provider_label = self
+                        .config
+                        .model_providers
+                        .get(provider_id.trim())
+                        .map(|provider| provider.name.trim())
+                        .filter(|name| !name.is_empty())
+                        .unwrap_or(provider_id.trim());
+                    Some(format!("{provider_label} | {}", model.trim()))
+                })
+        {
+            profiles.push(("default".to_string(), root_profile_label));
+        }
+
+        profiles.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+
+        if profiles.is_empty() {
+            self.add_info_message(
+                "No profiles are configured in config.toml.".to_string(),
+                /*hint*/ None,
+            );
+            return;
+        }
+
+        let items = profiles
+            .into_iter()
+            .map(|(profile_name, label)| {
+                let profile_for_action = profile_name.clone();
+                let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
+                    tx.send(AppEvent::PersistProfileSelection {
+                        profile_name: profile_for_action.clone(),
+                    });
+                })];
+                SelectionItem {
+                    name: label,
+                    description: Some(format!("profile: {profile_name}")),
+                    is_current: active_profile.as_deref() == Some(profile_name.as_str()),
+                    actions,
+                    dismiss_on_select: true,
+                    ..Default::default()
+                }
+            })
+            .collect::<Vec<_>>();
+
+        self.bottom_pane.show_selection_view(SelectionViewParams {
+            title: Some("Select Profile".to_string()),
+            subtitle: Some("Choose a saved provider and model pair.".to_string()),
+            footer_hint: Some(standard_popup_hint_line()),
+            items,
+            ..Default::default()
+        });
     }
 
     fn model_menu_header(&self, title: &str, subtitle: &str) -> Box<dyn Renderable> {

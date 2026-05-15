@@ -5,7 +5,6 @@
 
 use super::resize_reflow::trailing_run_start;
 use super::*;
-
 const SHUTDOWN_FIRST_EXIT_TIMEOUT: Duration = Duration::from_secs(/*secs*/ 2);
 
 impl App {
@@ -1217,6 +1216,41 @@ impl App {
                         } else {
                             self.chat_widget
                                 .add_error_message(format!("Failed to save default model: {err}"));
+                        }
+                    }
+                }
+            }
+            AppEvent::PersistProfileSelection { profile_name } => {
+                let profile = self.active_profile.as_deref();
+                match ConfigEditsBuilder::new(&self.config.codex_home)
+                    .with_edits([crate::legacy_core::config::edit::active_profile_edit(
+                        profile_name.as_str(),
+                    )])
+                    .apply()
+                    .await
+                {
+                    Ok(()) => {
+                        tracing::info!("Selected profile: {profile_name}");
+                        if let Err(err) = self.refresh_in_memory_config_from_disk().await {
+                            tracing::warn!(
+                                error = %err,
+                                "failed to refresh config after profile change"
+                            );
+                        }
+                    }
+                    Err(err) => {
+                        tracing::error!(
+                            error = %err,
+                            "failed to persist profile selection"
+                        );
+                        if let Some(profile) = profile {
+                            self.chat_widget.add_error_message(format!(
+                                "Failed to save active profile while editing `{profile}`: {err}"
+                            ));
+                        } else {
+                            self.chat_widget.add_error_message(format!(
+                                "Failed to save default profile: {err}"
+                            ));
                         }
                     }
                 }
