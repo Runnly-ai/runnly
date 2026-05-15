@@ -10,8 +10,6 @@ use codex_api::RetryConfig as ApiRetryConfig;
 use codex_api::is_azure_responses_provider;
 use codex_app_server_protocol::AuthMode;
 use codex_protocol::config_types::ModelProviderAuthInfo;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::EnvVarError;
 use codex_protocol::error::Result as CodexResult;
 use http::HeaderMap;
 use http::header::HeaderName;
@@ -23,6 +21,8 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::time::Duration;
+
+use dirs::home_dir;
 
 const DEFAULT_STREAM_IDLE_TIMEOUT_MS: u64 = 300_000;
 const DEFAULT_STREAM_MAX_RETRIES: u64 = 5;
@@ -287,42 +287,34 @@ impl ModelProviderInfo {
         })
     }
 
-    /// If `env_key` is Some, returns the API key for this provider if present
-    /// (and non-empty) in the environment. If `env_key` is required but
-    /// cannot be found, returns an error.
+    /// Returns the configured API key for this provider, if any.
+    ///
+    /// Precedence is:
+    /// 1. `api_key_file`
+    /// 2. `env_key`
+    /// 3. `experimental_bearer_token`
     pub fn api_key(&self) -> CodexResult<Option<String>> {
-        if let Some(env_key) = &self.env_key {
-            let api_key = std::env::var(env_key)
-                .ok()
-                .filter(|v| !v.trim().is_empty())
-                .ok_or_else(|| {
-                    CodexErr::EnvVar(EnvVarError {
-                        var: env_key.clone(),
-                        instructions: self.env_key_instructions.clone(),
-                    })
-                })?;
-            return Ok(Some(api_key));
-        }
-
         if let Some(api_key_file) = &self.api_key_file {
             let path = expand_tilde(api_key_file);
-            let api_key = fs::read_to_string(&path).map_err(|err| {
-                std::io::Error::new(
-                    err.kind(),
-                    format!("failed to read API key file {}: {err}", path.display()),
-                )
-            })?;
-            let api_key = api_key.trim().to_string();
-            if api_key.is_empty() {
-                return Err(CodexErr::EnvVar(EnvVarError {
-                    var: path.display().to_string(),
-                    instructions: Some(format!(
-                        "Create a file containing the API key at {}",
-                        path.display()
-                    )),
-                }));
+            match fs::read_to_string(&path) {
+                Ok(api_key) => {
+                    let api_key = api_key.trim().to_string();
+                    if !api_key.is_empty() {
+                        return Ok(Some(api_key));
+                    }
+                }
+                Err(_) => {}
             }
-            return Ok(Some(api_key));
+        }
+
+        if let Some(env_key) = &self.env_key {
+            if let Some(api_key) = std::env::var(env_key).ok().filter(|v| !v.trim().is_empty()) {
+                return Ok(Some(api_key));
+            }
+        }
+
+        if let Some(api_key) = self.experimental_bearer_token.as_ref() {
+            return Ok(Some(api_key.clone()));
         }
 
         Ok(None)
@@ -429,13 +421,14 @@ impl ModelProviderInfo {
         ModelProviderInfo {
             name: DEEPSEEK_PROVIDER_NAME.into(),
             base_url: Some(DEEPSEEK_DEFAULT_BASE_URL.into()),
-            env_key: None,
+            env_key: Some("DEEPSEEK_API_KEY".to_string()),
             api_key_file: Some("~/.runnly/secrets/deepseek-api-key".to_string()),
             env_key_instructions: Some(
                 "Get your DeepSeek API key from https://platform.deepseek.com/api_keys\n\
-                 Then either set it in your environment:\n\
-                 export DEEPSEEK_API_KEY=your-api-key-here\n\
-                 or place it in ~/.runnly/secrets/deepseek-api-key"
+                 Codex will try ~/.runnly/secrets/deepseek-api-key first and fall back to the\n\
+                 DEEPSEEK_API_KEY environment variable if the file is missing or unreadable.\n\
+                 To set the env var:\n\
+                 export DEEPSEEK_API_KEY=your-api-key-here"
                     .to_string(),
             ),
             experimental_bearer_token: None,
@@ -473,9 +466,10 @@ impl ModelProviderInfo {
 
 fn expand_tilde(path: &str) -> std::path::PathBuf {
     if let Some(rest) = path.strip_prefix("~/")
-        && let Some(home) = std::env::var_os("HOME")
+        && let Some(home) = home_dir()
     {
-        return std::path::PathBuf::from(home).join(rest);
+        let home: std::path::PathBuf = home;
+        return home.join(rest);
     }
     std::path::PathBuf::from(path)
 }

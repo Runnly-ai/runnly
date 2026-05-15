@@ -93,13 +93,24 @@ fn bearer_auth_for_provider(
     provider: &ModelProviderInfo,
 ) -> codex_protocol::error::Result<Option<BearerAuthProvider>> {
     if let Some(api_key) = provider.api_key()? {
+        tracing::trace!(
+            provider = %provider.name,
+            source = if provider.api_key_file.is_some() { "api_key_file" } else { "experimental_bearer_token" },
+            "resolved provider bearer auth"
+        );
         return Ok(Some(BearerAuthProvider::new(api_key)));
     }
 
     if let Some(token) = provider.experimental_bearer_token.clone() {
+        tracing::trace!(
+            provider = %provider.name,
+            source = "experimental_bearer_token",
+            "resolved provider bearer auth"
+        );
         return Ok(Some(BearerAuthProvider::new(token)));
     }
 
+    tracing::trace!(provider = %provider.name, "provider has no bearer auth");
     Ok(None)
 }
 

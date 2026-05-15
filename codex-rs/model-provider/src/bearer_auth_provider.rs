@@ -1,6 +1,7 @@
 use codex_api::AuthProvider;
 use http::HeaderMap;
 use http::HeaderValue;
+use tracing::trace;
 
 /// Bearer-token auth provider for OpenAI-compatible model-provider requests.
 #[derive(Clone, Default)]
@@ -33,7 +34,20 @@ impl AuthProvider for BearerAuthProvider {
         if let Some(token) = self.token.as_ref()
             && let Ok(header) = HeaderValue::from_str(&format!("Bearer {token}"))
         {
+            trace!(
+                has_authorization = true,
+                has_account_id = self.account_id.is_some(),
+                is_fedramp_account = self.is_fedramp_account,
+                "adding bearer auth headers"
+            );
             let _ = headers.insert(http::header::AUTHORIZATION, header);
+        } else {
+            trace!(
+                has_authorization = false,
+                has_account_id = self.account_id.is_some(),
+                is_fedramp_account = self.is_fedramp_account,
+                "skipping bearer auth header"
+            );
         }
         if let Some(account_id) = self.account_id.as_ref()
             && let Ok(header) = HeaderValue::from_str(account_id)

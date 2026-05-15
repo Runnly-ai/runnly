@@ -3264,6 +3264,7 @@ dependencies = [
  "codex-app-server-protocol",
  "codex-protocol",
  "codex-utils-absolute-path",
+ "dirs",
  "http 1.4.0",
  "maplit",
  "pretty_assertions",

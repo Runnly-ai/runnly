@@ -375,7 +375,7 @@ fn chat_tool_from_freeform(tool: &codex_tools::FreeformTool) -> ChatTool {
 }
 
 fn function_call_output_to_chat_content(output: &FunctionCallOutputPayload) -> Option<String> {
-    output.to_text()
+    output.body.to_text()
 }
 #[cfg(test)]
 pub(crate) const WEBSOCKET_CONNECT_TIMEOUT: Duration =
@@ -999,7 +999,6 @@ impl ModelClient {
         &self,
         prompt: &Prompt,
         model_info: &ModelInfo,
-        effort: Option<ReasoningEffortConfig>,
     ) -> ChatCompletionsRequest {
         let mut messages = Vec::new();
         if !prompt.base_instructions.text.is_empty() {
@@ -1015,6 +1014,11 @@ impl ModelClient {
         for item in prompt.get_formatted_input() {
             match item {
                 ResponseItem::Message { role, content, .. } => {
+                    let role = if role == "developer" {
+                        "system".to_string()
+                    } else {
+                        role
+                    };
                     let content = content
                         .into_iter()
                         .map(|content_item| match content_item {
@@ -1105,7 +1109,10 @@ impl ModelClient {
                 | ResponseItem::ToolSearchOutput { .. }
                 | ResponseItem::Reasoning { .. }
                 | ResponseItem::WebSearchCall { .. }
-                | ResponseItem::ImageGenerationCall { .. } => {
+                | ResponseItem::ImageGenerationCall { .. }
+                | ResponseItem::Compaction { .. }
+                | ResponseItem::ContextCompaction { .. }
+                | ResponseItem::Other => {
                     trace!(
                         "dropping Responses-only history item from chat completions request: {:?}",
                         item
@@ -1119,10 +1126,10 @@ impl ModelClient {
             messages,
             tools: chat_tools_for_prompt(prompt),
             tool_choice: Some("auto".to_string()),
-            parallel_tool_calls: Some(prompt.parallel_tool_calls),
+            parallel_tool_calls: None,
             stream: true,
-            reasoning_effort: effort.map(|value| value.to_string()),
-            thinking: Some(serde_json::json!({"type": "enabled"})),
+            reasoning_effort: None,
+            thinking: Some(serde_json::json!({"type": "disabled"})),
         }
     }
 
@@ -1147,6 +1154,12 @@ impl ModelClient {
         let auth = self.state.provider.auth().await;
         let api_provider = self.state.provider.api_provider().await?;
         let api_auth = self.state.provider.api_auth().await?;
+        trace!(
+            provider = %self.state.provider.info().name,
+            auth_mode = ?auth.as_ref().map(CodexAuth::auth_mode),
+            api_auth_attached = auth_header_telemetry(api_auth.as_ref()).attached,
+            "resolved client setup"
+        );
         Ok(CurrentClientSetup {
             auth,
             api_provider,
@@ -1712,7 +1725,15 @@ impl ModelClientSession {
 
         let request = self
             .client
-            .build_chat_completions_request(prompt, model_info, effort);
+            .build_chat_completions_request(prompt, model_info);
+        trace!(
+            model = %request.model,
+            messages = request.messages.len(),
+            tools = request.tools.len(),
+            parallel_tool_calls = ?request.parallel_tool_calls,
+            thinking = ?request.thinking,
+            "built DeepSeek chat-completions request"
+        );
         let url = format!(
             "{}{}",
             client_setup.api_provider.base_url, CHAT_COMPLETIONS_ENDPOINT
@@ -1733,7 +1754,15 @@ impl ModelClientSession {
         );
         let inference_trace_attempt = inference_trace.start_attempt();
         inference_trace_attempt.add_request_headers(&mut headers);
+        client_setup.api_auth.add_auth_headers(&mut headers);
         inference_trace_attempt.record_started(&request);
+        trace!(
+            has_authorization = headers.contains_key(http::header::AUTHORIZATION),
+            has_accept = headers.contains_key(http::header::ACCEPT),
+            has_content_type = headers.contains_key(http::header::CONTENT_TYPE),
+            url = %url,
+            "sending DeepSeek chat-completions request"
+        );
 
         let http = build_reqwest_client();
         let response = http
@@ -1748,11 +1777,33 @@ impl ModelClientSession {
                     None,
                 )
             })?;
-        let upstream_request_id = response
+        let status = response.status();
+        let request_id = response
             .headers()
             .get("x-request-id")
             .and_then(|value| value.to_str().ok())
             .map(str::to_string);
+        if !status.is_success() {
+            let error_body = response.text().await.unwrap_or_default();
+            trace!(
+                status = %status,
+                request_id = ?request_id,
+                error_body = %error_body,
+                "DeepSeek chat-completions non-success response"
+            );
+            return Err(codex_protocol::error::CodexErr::Stream(
+                format!(
+                    "DeepSeek chat-completions request failed with status {status}: {error_body}"
+                ),
+                None,
+            ));
+        }
+        trace!(
+            status = %status,
+            request_id = ?request_id,
+            "DeepSeek chat-completions response received"
+        );
+        let upstream_request_id = request_id;
         let mut stream = response.bytes_stream().eventsource();
         let (tx_event, rx_event) =
             mpsc::channel::<Result<ResponseEvent>>(RESPONSE_STREAM_CHANNEL_CAPACITY);
@@ -1799,6 +1850,11 @@ impl ModelClientSession {
                         continue;
                     }
                 };
+                trace!(
+                    chunk_choices = event.choices.len(),
+                    chunk_id = event.id.as_deref().unwrap_or("<none>"),
+                    "parsed DeepSeek chat-completions chunk"
+                );
 
                 if response_id.is_empty()
                     && let Some(id) = event.id
@@ -1814,6 +1870,13 @@ impl ModelClientSession {
                 }
 
                 for choice in event.choices {
+                    trace!(
+                        finish_reason = ?choice.finish_reason,
+                        has_content = choice.delta.content.is_some(),
+                        has_reasoning = choice.delta.reasoning_content.is_some(),
+                        has_tool_calls = choice.delta.tool_calls.is_some(),
+                        "processing DeepSeek chat-completions choice"
+                    );
                     if !sent_output_item {
                         sent_output_item = true;
                         let output_item = ResponseItem::Message {

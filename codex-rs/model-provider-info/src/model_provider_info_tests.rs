@@ -496,3 +496,32 @@ refresh_interval_ms = 0
     assert_eq!(auth.refresh_interval_ms, 0);
     assert_eq!(auth.refresh_interval(), None);
 }
+
+#[test]
+fn test_api_key_prefers_file_over_experimental_bearer_token() {
+    let base_dir = tempdir().unwrap();
+    let key_file = base_dir.path().join("deepseek.key");
+    std::fs::write(&key_file, "file-token\n").unwrap();
+
+    let provider = ModelProviderInfo {
+        api_key_file: Some(key_file.to_string_lossy().into_owned()),
+        experimental_bearer_token: Some("inline-token".to_string()),
+        ..ModelProviderInfo::default()
+    };
+
+    assert_eq!(provider.api_key().unwrap(), Some("file-token".to_string()));
+}
+
+#[test]
+fn test_api_key_falls_back_to_experimental_bearer_token_when_file_missing() {
+    let provider = ModelProviderInfo {
+        api_key_file: Some("does-not-exist.key".to_string()),
+        experimental_bearer_token: Some("inline-token".to_string()),
+        ..ModelProviderInfo::default()
+    };
+
+    assert_eq!(
+        provider.api_key().unwrap(),
+        Some("inline-token".to_string())
+    );
+}
